@@ -1,0 +1,40 @@
+﻿using System.Collections.Generic;
+using DOTS.Features.CompanionTactics.FormationPresets.Models;
+
+namespace DOTS.Features.CompanionTactics.FormationPresets;
+
+/// <summary>
+/// Pure-state CRUD over <see cref="HoNFormationPreset"/> entries. Application of a preset
+/// to an actual <c>OrderOfBattleVM</c> happens at the boundary (the OOBOverlayService /
+/// MissionView) — the sealed VM never crosses this interface.
+/// </summary>
+public interface IFormationPresetService
+{
+    IReadOnlyList<HoNFormationPreset> Presets { get; }
+
+    /// <summary>Persist a preset. Enforces <c>MaxFormationPresets</c> on additions.</summary>
+    SaveResult SavePreset(HoNFormationPreset preset);
+
+    /// <summary>Look up by id.</summary>
+    HoNFormationPreset GetPresetById(string presetId);
+
+    /// <summary>Remove by id; returns true if found.</summary>
+    bool DeletePreset(string presetId);
+
+    /// <summary>Replace all presets (called from <c>OnGameLoaded</c> with the saved list).</summary>
+    void OnGameLoaded(List<HoNFormationPreset> loaded);
+
+    /// <summary>Snapshot for <c>SyncData</c> on save.</summary>
+    List<HoNFormationPreset> GetPresetsForSaving();
+
+    /// <summary>Mission lifecycle reset — clears any per-battle state.</summary>
+    void OnMissionEnd();
+
+    /// <summary>
+    /// Phase 9b #139 P2 — explicit reset for new-game scenarios. Pre-fix the campaign behavior
+    /// called <c>OnGameLoaded(empty)</c> for both save-load and new-game-reset, which is a
+    /// semantic abstraction leak (any future load-path validation would inadvertently run on
+    /// new-game). New-game reset now has its own no-arg entry point.
+    /// </summary>
+    void Reset();
+}

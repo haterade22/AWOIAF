@@ -1,0 +1,12 @@
+﻿{
+  "name": "dots_spcultures",
+  "description": "Custom culture definitions (dots_spcultures.xml). Every basic_troop / elite_basic_troop / militia / NPC-role / party-template attribute is a cross-reference and is checked by the global sweep: NPCCharacter.* refs must resolve to a defined troop/character, PartyTemplate.* refs to a defined party template. Catches the 'culture points at a deleted troop' bug class.",
+  "applies_to": [
+    "dots_spcultures.xml"
+  ],
+  "entry_element": "Culture",
+  "id_attribute": "id",
+  "duplicate_code": "DUPLICATE_CULTURE_ID",
+  "enums": {},
+  "special_rules": []
+}

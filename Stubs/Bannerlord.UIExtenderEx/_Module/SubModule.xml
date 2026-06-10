@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DOTS.Dependencies passive alias stub for Bannerlord.UIExtenderEx.
+  See Stubs/Bannerlord.Harmony/_Module/SubModule.xml for the full design
+  rationale (version-99 strategy, real <SubModule> entry, MP support).
+  Real UIExtenderEx loads via DOTS.Dependencies's SubModule.xml.
+-->
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/BUTR/Bannerlord.XmlSchemas/master/SubModule.xsd">
+    <Id value="Bannerlord.UIExtenderEx" />
+    <Name value="UIExtenderEx (provided by DOTS.Dependencies)" />
+    <Version value="v2.13.99.0" />
+    <DefaultModule value="true" />
+    <SingleplayerModule value="true" />
+    <MultiplayerModule value="true" />
+    <Official value="false" />
+    <ModuleCategory value="Singleplayer" />
+    <ModuleType value="Community" />
+    <Url value="" />
+
+    <DependedModules>
+        <DependedModule Id="DOTS.Dependencies" />
+        <DependedModule Id="Bannerlord.Harmony" />
+    </DependedModules>
+    <DependedModuleMetadatas>
+        <DependedModuleMetadata id="DOTS.Dependencies" order="LoadBeforeThis" />
+        <DependedModuleMetadata id="Bannerlord.Harmony" order="LoadBeforeThis" />
+    </DependedModuleMetadatas>
+
+    <SubModules>
+        <SubModule>
+            <Name value="Bannerlord.UIExtenderEx Alias Stub" />
+            <DLLName value="DOTS.Dependencies.dll" />
+            <SubModuleClassType value="DOTS.Dependencies.AliasStubSubModule" />
+            <Tags />
+        </SubModule>
+    </SubModules>
+</Module>

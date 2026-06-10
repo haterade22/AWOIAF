@@ -1,0 +1,55 @@
+﻿{
+  "mcpServers": {
+    "serena": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "ide-assistant",
+        "--project",
+        "c:/Users/mikew/source/repos/DOTS"
+      ],
+      "env": {}
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Users\\mikew\\source\\repos\\DOTS",
+        "E:\\Steam\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules",
+        "E:\\LOTRAOMAssets\\LOTRAOM_Jan_1_Patreon\\Modules\\LOTRAOM\\ModuleData"
+      ],
+      "env": {}
+    },
+    "git": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-server-git"],
+      "env": {}
+    },
+    "ilspy": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "ilspy_mcp_server"],
+      "env": {
+        "ILSPY_PATH": "ilspycmd"
+      }
+    },
+    "dots-moduledata": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["c:/Users/mikew/source/repos/DOTS/tools/dots_mcp_server.py"],
+      "env": {}
+    }
+  }
+}

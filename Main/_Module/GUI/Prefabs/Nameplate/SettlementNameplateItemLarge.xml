@@ -1,0 +1,164 @@
+﻿<Prefab>
+  <Constants>
+    <Constant Name="Large.Width" Value="308" />
+    <Constant Name="Large.Height" Value="38" />
+
+    <Constant Name="Medium.Width" Value="210" />
+    <Constant Name="Medium.Height" Value="45" />
+
+    <Constant Name="Small.Width" Value="160" />
+    <Constant Name="Small.Height" Value="34" />
+
+    <Constant Name="MapEvent.Visual.Width" Value="80" />
+    <Constant Name="MapEvent.Visual.Height" Value="59" />
+
+    <Constant Name="Small.BannerWidth" Value="!Small.Height" />
+    <Constant Name="Small.BannerHeight" MultiplyResult="1.3333" Value="!Small.BannerWidth" />
+    <Constant Name="Small.TrackerWidthHeight" Additive="-12" Value="!Small.Height" />
+    <Constant Name="Small.TrackerTextMargin" Additive="10" Value="!Small.TrackerWidthHeight" />
+
+    <Constant Name="Medium.BannerWidth" Value="!Medium.Height" />
+    <Constant Name="Medium.BannerHeight" MultiplyResult="1.3333" Value="!Medium.BannerWidth"/>
+
+    <Constant Name="Medium.TrackerWidthHeight" Additive="-20" Value="!Medium.Height" />
+    <Constant Name="Medium.TrackerTextMargin" Additive="10" Value="!Medium.TrackerWidthHeight" />
+
+    <Constant Name="Large.BannerWidth" Value="!Large.Height" />
+    <Constant Name="Large.BannerHeight"  MultiplyResult="1.33333" Value="!Large.BannerWidth" />
+    <Constant Name="Large.TrackerWidthHeight" Additive="-26" Value="!Large.Height" />
+    <Constant Name="Large.TrackerTextMargin" Additive="14" Value="!Large.TrackerWidthHeight" />
+    <Constant Name="Large.BannerDiamondSize" Value="66" />
+    <Constant Name="Large.BannerDiamondInnerSize" Value="56" />
+    <Constant Name="Large.BarStartX" Value="42" />
+    <Constant Name="Large.TotalWidth" Value="350" />
+    <Constant Name="Large.BarTextLeftMargin" Value="26" />
+    <Constant Name="Large.BarTextRightMargin" Value="42" />
+
+  </Constants>
+  <Window>
+    <SettlementNameplateWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" IsInRange="@IsInRange" IsInsideWindow="@IsInside" IsTracked="@IsTracked" IsVisibleOnMap="@IsVisibleOnMap" NotificationListPanel="NotificationListPanel" EventsListPanel="EventsListPanel" Position="@Position" RelationType="@Relation" WSign="@WSign" IsTargetedByTutorial="@IsTargetedByTutorial" CanParley="@CanParley" HasPort="@HasPort" DistanceToCamera="@DistanceToCamera" NameplateItem="NameplateWidget" MarginBottom="39" MarginTop="5">
+      <!--Brush="TutorialHighlightBrush"-->
+      <Children>
+        
+        <ListPanel Id="NotificationListPanel" DataSource="{SettlementNotifications\Notifications}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Bottom" MarginBottom="8" StackLayout.LayoutMethod="VerticalTopToBottom">
+          <ItemTemplate>
+            <NameplateNotificationListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="50" VerticalAlignment="Center" Command.OnRemove="ExecuteRemove" FadeTime="0.4" RelationType="@RelationType" RelationVisualWidget="NotificationBaseWidget\RelationVisualWidget" StayAmount="3">
+              <Children>
+                <ListPanel Id="NotificationBaseWidget" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" SuggestedWidth="234" VerticalAlignment="Center" Sprite="SPGeneral\Nameplates\Notification\base" AlphaFactor="0.6">
+                  <Children>
+                    <Widget Id="RelationVisualWidget" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="26" VerticalAlignment="Center" Sprite="SPGeneral\Nameplates\Notification\relation_status"/>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="26" VerticalAlignment="Center" MarginLeft="4" Sprite="SPGeneral\Nameplates\Notification\avatar">
+                      <Children>
+                        <ImageIdentifierWidget DataSource="{CharacterVisual}" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="36" SuggestedHeight="26" HorizontalAlignment="Center" VerticalAlignment="Center" AdditionalArgs="@AdditionalArgs" ImageId="@Id" TextureProviderName="@TextureProviderName" />
+                      </Children>
+                    </Widget>
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center" MarginLeft="9" Brush="Settlement.Notification.Name.Text" Text="@CharacterName" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center" MarginLeft="4" Brush="Settlement.Notification.Value.Text" Text="@Text" MarginRight="20"/>
+                  </Children>
+                </ListPanel>
+              </Children>
+            </NameplateNotificationListPanel>
+          </ItemTemplate>
+        </ListPanel>
+
+        <!--Events List-->
+        <ListPanel Id="EventsListPanel" DataSource="{SettlementEvents\EventsList}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center" StackLayout.LayoutMethod="HorizontalLeftToRight">
+          <ItemTemplate>
+            <SettlementNameplateEventVisualBrushWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedHeight="24" Brush="Settlement.Event.Type.Image" Type="@Type" AdditionalParameters="@AdditionalParameters"/>
+          </ItemTemplate>
+        </ListPanel>
+
+        <!--Big Size Nameplate-->
+        <SettlementNameplateItemWidget Id="NameplateWidget" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="!Large.TotalWidth" SuggestedHeight="!Large.Height" SettlementBannerWidget="SettlementNameplateCapsuleWidget\SettlementNameplateLayout\DiamondSlot\SettlementBannerWidget" SettlementNameplateCapsuleWidget="SettlementNameplateCapsuleWidget" InspectedIconWidget="SettlementNameplateCapsuleWidget\InspectedWidget" PortIconWidget="SettlementNameplateCapsuleWidget\LeftSideIcons\PortIconWidget" SettlementNameTextWidget="SettlementNameplateCapsuleWidget\SettlementNameplateLayout\BarContainer\SettlementNameTextWidget" SettlementPartiesGridWidget="PartiesInSettlementGridWidget" WidgetToShow="SettlementNameplateCapsuleWidget\SettlementNameplateLayout\BarContainer\TrackButton" MapEventVisualWidget="MapEventVisualWidget" ParleyIconWidget="SettlementNameplateCapsuleWidget\LeftSideIcons\ParleyIconWidget">
+          <Children>
+
+            <ButtonWidget Id="SettlementNameplateCapsuleWidget" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="!Large.TotalWidth" SuggestedHeight="!Large.Height" VerticalAlignment="Bottom" Command.AlternateClick="ExecuteOpenEncyclopedia" Command.Click="ExecuteSetCameraPosition">
+              <Children>
+
+                <!--Inspected Range Dot-->
+                <Widget Id="InspectedWidget" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="20" VerticalAlignment="Center" PositionXOffset="23" PositionYOffset="-44" Sprite="SPGeneral\Nameplates\nameplate_vision" AlphaFactor="0.5" Color="#DDCDB3FF" IsEnabled="false" />
+
+                <!-- Left Side Icons -->
+                <ListPanel Id="LeftSideIcons" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="HorizontalRightToLeft" VerticalAlignment="Center" PositionXOffset="-80">
+                  <Children>
+                    <Widget Id="PortIconWidget" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="40" SuggestedHeight="40" Sprite="Map\anchor_stroked" IsVisible="false" />
+                    <Widget Id="ParleyIconWidget" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="33" SuggestedHeight="33" Sprite="General\Icons\parley_icon" AlphaFactor="0"/>
+                  </Children>
+                </ListPanel>
+                
+                <Widget Id="SettlementNameplateLayout" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="!Large.TotalWidth" SuggestedHeight="!Large.BannerDiamondSize" VerticalAlignment="Center">
+                  <Children>
+                    <Widget Id="BarContainer" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="!Large.Width" SuggestedHeight="!Large.Height" HorizontalAlignment="Left" VerticalAlignment="Center" PositionXOffset="!Large.BarStartX">
+                      <Children>
+                        <Widget Id="SettlementBarBackgroundWidget" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="DOTS\Nameplates\settlement_nameplate_background" />
+
+                        <TextWidget Id="SettlementNameTextWidget" WidthSizePolicy="CoverChildren" MinWidth="84" HeightSizePolicy="StretchToParent" MarginLeft="!Large.BarTextLeftMargin" MarginRight="!Large.BarTextRightMargin" MarginTop="4" MarginBottom="4" PositionYOffset="-2" Brush="Settlement.Nameplate.Large.Text" IsDisabled="true" Text="@Name" />
+
+                        <ButtonWidget Id="TrackButton" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="!Large.TrackerWidthHeight" SuggestedHeight="!Large.TrackerWidthHeight" HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="10" Sprite="SPGeneral\Nameplates\hover_ring" Command.Click="ExecuteTrack">
+                          <Children>
+                            <TutorialHighlightItemBrushWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="TutorialHighlightBrush" IsEnabled="false" IsHighlightEnabled="@IsTrackerHighlightEnabled" IsVisible="false" />
+                          </Children>
+                        </ButtonWidget>
+
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="!Large.TrackerWidthHeight" SuggestedHeight="!Large.TrackerWidthHeight" HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="10" Sprite="SPGeneral\Nameplates\tracked_ring" ColorFactor="10" IsDisabled="true" IsVisible="@IsTracked" />
+                      </Children>
+                    </Widget>
+
+                    <Widget Id="DiamondSlot" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="!Large.BannerDiamondSize" SuggestedHeight="!Large.BannerDiamondSize" HorizontalAlignment="Left" VerticalAlignment="Center">
+                      <Children>
+                        <MaskedTextureWidget Id="SettlementBannerWidget" DataSource="{Banner}" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="!Large.BannerDiamondInnerSize" SuggestedHeight="!Large.BannerDiamondInnerSize" HorizontalAlignment="Center" VerticalAlignment="Center" Brush="Settlement.Large.DiamondBanner" AdditionalArgs="@AdditionalArgs" ImageId="@Id" TextureProviderName="@TextureProviderName" IsDisabled="true" />
+                        <Widget Id="SettlementBannerBorderWidget" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="!Large.BannerDiamondSize" SuggestedHeight="!Large.BannerDiamondSize" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="DOTS\Nameplates\settlement_banner_large_background" />
+                      </Children>
+                    </Widget>
+                  </Children>
+                </Widget>
+
+              </Children>
+            </ButtonWidget>
+
+            <!--Map Event Visual-->
+            <MapEventVisualBrushWidget Id="MapEventVisualWidget" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="!MapEvent.Visual.Width" SuggestedHeight="!MapEvent.Visual.Height" HorizontalAlignment="Center" VerticalAlignment="Top" PositionYOffset="-106" Brush="MapEvent.Visual.Brush" MapEventType="@MapEventVisualType" IsEnabled="false"/>
+
+            <!--Parties Grid-->
+            <GridWidget Id="PartiesInSettlementGridWidget" DataSource="{SettlementParties\PartiesInSettlement}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" PositionXOffset="65" PositionYOffset="48" DefaultCellWidth="30" DefaultCellHeight="20" ColumnCount="6" LayoutImp="GridLayout">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="26" HorizontalAlignment="Center" Sprite="StdAssets\rectangle_card">
+                  <Children>
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsHidden="true" IsVisible="@IsDefault">
+                      <Children>
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="21.6" SuggestedHeight="18.22" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="General\Icons\Militia" />
+                      </Children>
+                    </Widget>
+
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsHidden="true" IsVisible="@IsCaravan">
+                      <Children>
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="21.6" SuggestedHeight="21.6" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="General\Icons\Coin@2x" />
+                      </Children>
+                    </Widget>
+
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsHidden="true" IsVisible="@IsLord">
+                      <Children>
+                        <MaskedTextureWidget DataSource="{Visual}" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="21" SuggestedHeight="16" HorizontalAlignment="Center" VerticalAlignment="Center" Brush="Settlement.Party.Banner" AdditionalArgs="@AdditionalArgs" ImageId="@Id" TextureProviderName="@TextureProviderName"/>
+                      </Children>
+                    </Widget>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </GridWidget>
+						<!-- Settlement Trackers -->
+						<Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center" HorizontalAlignment="Left" MarginLeft="9" MarginBottom="80" IsVisible="@IsInRange">
+							<Children>
+								<ListPanel DoNotAcceptEvents="true" DoNotPassEventsToChildren="true" DataSource="{SettlementEvents\TrackQuests}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="HorizontalLeftToRight">
+									<ItemTemplate>
+										<QuestMarkerBrushWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedHeight="27" MarkerScale="0.66" QuestMarkerType="@QuestMarkerType" Brush="GameMenu.QuestMarker" />
+									</ItemTemplate>
+								</ListPanel>
+							</Children>
+						</Widget>
+						
+          </Children>
+        </SettlementNameplateItemWidget>
+      </Children>
+    </SettlementNameplateWidget>
+  </Window>
+</Prefab>

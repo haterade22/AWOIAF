@@ -1,0 +1,95 @@
+﻿---
+paths:
+  - "Main/Features/**/Models/*.cs"
+  - "Main/Features/**/*Model.cs"
+---
+
+# GameModel Override Rules
+
+DOTS has 31 GameModel overrides. All follow the same pattern.
+
+## Pattern
+
+```csharp
+public class DotsFooModel : DefaultFooModel
+{
+    private readonly IFooService _service;
+
+    public DotsFooModel(IFooService service)
+    {
+        _service = service;
+    }
+
+    public override float SomeCalculation(SealedType param)
+    {
+        var adapter = IoC.Resolve<IAdapterFactory>().GetAdapter(param);
+        var taomResult = _service.Calculate(adapter);
+        return taomResult ?? base.SomeCalculation(param);
+    }
+}
+```
+
+## Rules
+
+1. **Research first** — Always decompile `DefaultXxxModel` with `/research` before overriding. Never guess which base methods to call.
+2. **Inherit from `Default*`** — Never override `GameModel` directly; inherit from the corresponding `Default*` class.
+3. **Call `base.Method()`** — Unless deliberately replacing behavior, fall through to base for unhandled cases.
+4. **Thin model class** — The model class is an entry point (<150 lines). **All logic goes in a `Service`.** Line count is a ceiling, not the test. The override body may contain ONLY one of: (a) a single constant expression (e.g. `MaxCharacterTier => 10`), (b) perk/adapter conversion at the boundary plus a direct delegate to the service. A body that contains `if`, `foreach`, `switch`, `yield` branching, or any multi-line computation is a violation — extract to a service even if the model is under 20 lines. "It's only a few lines" is not a carve-out; the rule is binary. Counter-example: `DotsCharacterStatsModel` (one constant) is legal; a 6-line `yield return` chain with a conditional is not.
+5. **Adapter boundary** — Convert sealed TaleWorlds params to adapters immediately. Never pass `Hero`, `Settlement`, etc. into the service.
+6. **JSON/XML config** — Configurable values live in `Main/_Module/ModuleData/configs/` or feature-specific XML, not hardcoded in the model.
+7. **Register in SubModule.cs** — GameModel overrides must be returned from `CreateGameModels()` in `SubModule.cs`.
+8. **Tests** — Service logic is fully unit-tested. The model class itself is thin enough to not need direct tests.
+
+## Registration Pattern
+
+```csharp
+// In SubModule.cs
+public override void OnBeforeInitialModuleScreenSetAsRoot()
+{
+    // Models registered via AddModel in GetGameModels
+}
+
+protected override void OnGameStart(Game game, IGameStarter gameStarter)
+{
+    if (gameStarter is CampaignGameStarter campaignStarter)
+    {
+        campaignStarter.AddModel(new DotsFooModel(IoC.Resolve<IFooService>()));
+    }
+}
+```
+
+## Existing Overrides (31 total)
+
+| Model | Base | Feature |
+|-------|------|---------|
+| `DotsCharacterStatsModel` | `DefaultCharacterStatsModel` | `TroopProgression` |
+| `DotsPartyWageModel` | `DefaultPartyWageModel` | `CulturalFeats` |
+| `DotsVolunteerModel` | `DefaultVolunteerModel` | `TroopProgression` |
+| `DotsArmyManagementModel` | `DefaultArmyManagementCalculationModel` | `CulturalFeats` |
+| `DotsPartySpeedModel` | `DefaultPartySpeedCalculatingModel` | `CulturalFeats` |
+| `DotsSettlementProsperityModel` | `DefaultSettlementProsperityModel` | `CulturalFeats` |
+| `DotsSettlementMilitiaModel` | `DefaultSettlementMilitiaModel` | `CulturalFeats` |
+| `DotsBuildingConstructionModel` | `DefaultBuildingConstructionModel` | `CulturalFeats` |
+| `DotsVillageProductionModel` | `DefaultVillageProductionCalculatorModel` | `CulturalFeats` |
+| `DotsCaravanModel` | `DefaultCaravanModel` | `CulturalFeats` |
+| `DotsBattleRewardModel` | `DefaultBattleRewardModel` | `CulturalFeats` |
+| `DotsPartyTroopUpgradeModel` | `DefaultPartyTroopUpgradeModel` | `CulturalFeats` |
+| `DotsPartySizeModel` | `DefaultPartySizeLimitModel` | `CulturalFeats` |
+| `DotsFoodConsumptionModel` | `DefaultMobilePartyFoodConsumptionModel` | `CulturalFeats` |
+| `DotsSettlementLoyaltyModel` | `DefaultSettlementLoyaltyModel` | `CulturalFeats` |
+| `DotsPartyMoraleModel` | `DefaultPartyMoraleModel` | `CulturalFeats` |
+| `DotsSmithingModel` | `DefaultSmithingModel` | `CulturalFeats` |
+| `DotsClanFinanceModel` | `DefaultClanFinanceModel` | `CulturalFeats` |
+| `DotsRaidModel` | `DefaultRaidModel` | `CulturalFeats` |
+| `DotsMilitaryPowerModel` | `DefaultMilitaryPowerModel` | `BattleBalance` |
+| `DotsCombatSimulationModel` | `DefaultCombatSimulationModel` | `BattleBalance` |
+| `DotsPartyHealingModel` | `DefaultPartyHealingModel` | `Arena` |
+| `DotsTournamentModel` | `DefaultTournamentModel` | `Arena` |
+| `DotsAgeModel` | `DefaultAgeModel` | `RaceAge` |
+| `DotsPregnancyModel` | `DefaultPregnancyModel` | `RaceAge` |
+| `DotsHeroCreationModel` | `DefaultHeroCreationModel` | `RaceAge` |
+| `DotsAllianceModel` | `DefaultAllianceModel` | `Diplomacy` |
+| `DotsKingdomDecisionPermissionModel` | `DefaultKingdomDecisionPermissionModel` | `Diplomacy` |
+| `DotsDiplomacyModel` | `DefaultDiplomacyModel` | `Diplomacy` |
+| `DotsExecutionRelationModel` | `DefaultExecutionRelationModel` | `Execution` |
+| `DotsInformationRestrictionModel` | `DefaultInformationRestrictionModel` | `Encyclopedia` |

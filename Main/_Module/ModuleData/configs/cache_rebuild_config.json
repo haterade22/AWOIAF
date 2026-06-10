@@ -1,0 +1,13 @@
+﻿{
+  "enabled": true,
+  "forceVanilla": false,
+  "parallelism": 4,
+  "enableIncremental": true,
+  "incrementalMaxChanged": 30,
+  "smokeTestPairs": 10,
+  "smokeTestDistanceTolerance": 0.0001,
+  "validationReportRelativePath": "DOTS_Map/ModuleData/DistanceCaches/last_rebuild_report.json",
+  "enableCheckpoint": true,
+  "checkpointRelativeDirectory": "DOTS_Map/ModuleData/DistanceCaches",
+  "settlementSnapshotRelativePath": "DOTS_Map/ModuleData/DistanceCaches/settlements_snapshot.json"
+}

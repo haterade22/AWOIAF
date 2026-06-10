@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DOTS.Dependencies passive alias stub for Bannerlord.MBOptionScreen (MCM).
+  See Stubs/Bannerlord.Harmony/_Module/SubModule.xml for the full design
+  rationale. Real MCMv5.dll + Bannerlord.MBOptionScreen.v1.4.{0,1}.dll
+  + ModuleLoader load via DOTS.Dependencies's SubModule.xml.
+-->
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/BUTR/Bannerlord.XmlSchemas/master/SubModule.xsd">
+    <Id value="Bannerlord.MBOptionScreen" />
+    <Name value="MBOptionScreen / MCM (provided by DOTS.Dependencies)" />
+    <Version value="v5.11.99.0" />
+    <DefaultModule value="true" />
+    <SingleplayerModule value="true" />
+    <MultiplayerModule value="true" />
+    <Official value="false" />
+    <ModuleCategory value="Singleplayer" />
+    <ModuleType value="Community" />
+    <Url value="" />
+
+    <DependedModules>
+        <DependedModule Id="DOTS.Dependencies" />
+        <DependedModule Id="Bannerlord.Harmony" />
+        <DependedModule Id="Bannerlord.UIExtenderEx" />
+        <DependedModule Id="Bannerlord.ButterLib" />
+    </DependedModules>
+    <DependedModuleMetadatas>
+        <DependedModuleMetadata id="DOTS.Dependencies" order="LoadBeforeThis" />
+        <DependedModuleMetadata id="Bannerlord.Harmony" order="LoadBeforeThis" />
+        <DependedModuleMetadata id="Bannerlord.UIExtenderEx" order="LoadBeforeThis" />
+        <DependedModuleMetadata id="Bannerlord.ButterLib" order="LoadBeforeThis" />
+    </DependedModuleMetadatas>
+
+    <SubModules>
+        <SubModule>
+            <Name value="Bannerlord.MBOptionScreen Alias Stub" />
+            <DLLName value="DOTS.Dependencies.dll" />
+            <SubModuleClassType value="DOTS.Dependencies.AliasStubSubModule" />
+            <Tags />
+        </SubModule>
+    </SubModules>
+</Module>

@@ -1,0 +1,70 @@
+﻿using System;
+using HarmonyLib;
+using DOTS.Core.Logging;
+using TaleWorlds.CampaignSystem.CampaignBehaviors.AiBehaviors;
+using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
+
+namespace DOTS.Features.ArmyTargeting.Hooks;
+
+[HarmonyPatch(typeof(AiMilitaryBehavior), "CalculateDistanceScoreForBesieging")]
+[HarmonyPatchCategory("Patch22_ArmyTargeting")]
+public static class AiMilitaryBehavior_CalculateDistanceScoreForBesieging_Patch
+{
+    // Phase 9b #161 — cache the three IoC.Resolve calls instead of resolving per invocation.
+    // This patch fires per-army-per-AI-tick (~500-2000 calls/cycle per feature doc). Each
+    // resolve acquires a DryIoc lock and walks the registration table — non-trivial cost at
+    // that frequency. Lazy `??=` cache resolves once per process. Class is also `static` per
+    // Harmony 2 convention (#151 pattern).
+    private static IArmyTargetingService _service;
+    private static IArmyTargetingSettingsProvider _settings;
+    private static IModLogger _logger;
+
+    // Audit Agent 1 CRITICAL fix 2026-05-22: vanilla 1.4.5 method now has FOUR out params:
+    //   private void CalculateDistanceScoreForBesieging(
+    //       Settlement targetSettlement,
+    //       MobileParty mobileParty,
+    //       out MobileParty.NavigationType bestNavigationType,
+    //       out float bestDistanceScore,
+    //       out bool isFromPort,
+    //       out bool isTargetingPort)
+    // Harmony binds Postfix parameters positionally-by-name. Without the 3 extra params,
+    // the patch fails to bind silently — the entire border-proximity-floor feature was
+    // a runtime no-op since the v1.4.0 method-signature change.
+    [HarmonyPostfix]
+    public static void Postfix(
+        Settlement targetSettlement,
+        MobileParty mobileParty,
+        ref MobileParty.NavigationType bestNavigationType,
+        ref float bestDistanceScore,
+        ref bool isFromPort,
+        ref bool isTargetingPort)
+    {
+        if (bestDistanceScore > 0f) return;
+
+        try
+        {
+            _service  ??= IoC.Resolve<IArmyTargetingService>();
+            _settings ??= IoC.Resolve<IArmyTargetingSettingsProvider>();
+
+            if (!_settings.EnableArmyStrategicIntelligence) return;
+
+            float floor = _settings.BorderProximityFloor;
+            if (floor <= 0f) return;
+
+            string factionId    = mobileParty?.MapFaction?.StringId;
+            string settlementId = targetSettlement?.StringId;
+
+            if (_service.IsInPriorityList(factionId, settlementId))
+            {
+                bestDistanceScore = floor;
+                _logger ??= IoC.Resolve<IModLogger>();
+                _logger.LogDebug($"ArmyTargeting: border proximity floor {floor:F2} applied for {factionId}→{settlementId}");
+            }
+        }
+        catch (Exception)
+        {
+            // IoC not initialized or feature not started — degrade gracefully
+        }
+    }
+}

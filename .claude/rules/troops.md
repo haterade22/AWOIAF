@@ -1,0 +1,107 @@
+﻿---
+paths:
+  - "Main/_Module/ModuleData/troops/**"
+  - "Main/_Module/ModuleData/dots_partyTemplates.xml"
+  - "Main/Features/TroopProgression/**"
+---
+
+# Troop Management Rules
+
+## When Adding or Restructuring Troops
+
+Update ALL of the following (checklist):
+
+| Step | File(s) | What to do |
+|------|---------|------------|
+| 1. Define troops | `Main/_Module/ModuleData/troops/troops_{culture}.xml` | Add NPCCharacter with skills, equipment, upgrade_targets, race, culture |
+| 2. Party templates | `Main/_Module/ModuleData/dots_partyTemplates.xml` | Add to ALL relevant templates for the culture (hero, patrol L1/L2/L3, outlaw, rebels, mercenary, vassal_reward) |
+| 3. Culture config | `Main/_Module/ModuleData/dots_spcultures.xml` | Update `basic_troop` / `elite_basic_troop` if entry point changed |
+| 4. Recruitment code | `Main/Features/TroopProgression/VolunteerRecruitmentService.cs` | Add/update settlement, clan, and culture fallback pools |
+| 5. Recruitment tests | `DOTS.Tests/Features/TroopProgression/VolunteerRecruitmentServiceTests.cs` | TDD: write tests FIRST, then implement |
+| 6. NPC references | `Main/_Module/ModuleData/characters/npcs_{culture}.xml` | Check villager upgrade_targets, caravan guard references |
+| 7. CHANGELOG | `CHANGELOG.md` | Document the changes |
+
+## Troop ID Naming Convention
+
+`{culture_prefix}_{origin}_{role}` — Examples:
+- `dg_goblin_slave` — Dol Guldur, goblin race, slave role
+- `dg_khamul_shadow_initiate` — Dol Guldur, Khamul's line, shadow initiate
+- `gondor_ano_peasant` — Gondor, Anórien origin, peasant role
+
+## Race Attributes by Culture
+
+| Culture | Race Lines | Race Attribute |
+|---------|-----------|---------------|
+| Dol Guldur | Goblin | `race="goblin"` |
+| Dol Guldur | Orc | `race="orc"` |
+| Dol Guldur | Uruk | `race="dg_uruk"` |
+| Dol Guldur | Khamul (human) | no `race` attribute |
+| Gondor | Human | no `race` attribute |
+| Gundabad | Goblin/Orc | `race="goblin"` / `race="orc"` |
+
+## Party Template Types
+
+Each culture typically has these templates in `dots_partyTemplates.xml`:
+
+| Template | Purpose | Typical Composition |
+|----------|---------|-------------------|
+| `kingdom_hero_party_{culture}_template` | Lord armies | Full range T1-T9 |
+| `kingdom_hero_party_mercenary_{culture}_template` | Mercenary bands | Mid-tier professional |
+| `kingdom_hero_party_outlaw_{culture}_template` | Outlaw parties | Low-tier rabble |
+| `patrol_party_{culture}_template_level_1` | Weak patrols | Low-mid tier |
+| `patrol_party_{culture}_template_level_2` | Medium patrols | Mid tier |
+| `patrol_party_{culture}_template_level_3` | Elite patrols | High tier |
+| `rebels_{culture}_template` | Rebel uprisings | Low tier masses |
+| `vassal_reward_troops_{culture}` | Vassal rewards | Elite troops |
+| `militia_{culture}_template` | Town garrison | Militia troops |
+
+## Save Compatibility
+
+- **Never change troop IDs** — rename display names only (keep `id` attribute)
+- **Never delete troops** — orphan them (remove from upgrade_targets) but keep in file
+- **is_basic_troop** — marks a troop as a standalone recruitment entry point
+- **Tier shifts are allowed** — moving a troop from T6 → T5 is fine if you also re-pick its skill curve + armor + equipment to match the new tier. Engine re-applies on next load. (Dale `dale_royal_cavalier` T6→T5, `dale_kinsman_of_eorl` T7→T6 worked cleanly across an existing save.)
+- **Display-name desync is OK** — `dale_master_crossbowman` can legitimately display "Royal Crossbowman" if a later rename swap put "Royal" at the higher tier. Document the desync in the feature doc.
+
+## Volunteer Recruitment Lookup Priority (MANDATORY when editing `VolunteerRecruitmentService.cs`)
+
+The pool resolution order is (highest priority first):
+
+1. **`ConditionalSettlementMap[settlementId]`** — state-sensitive (e.g., Ithil Guard at `town_ES2` only when Gondor-owned).
+2. **`SettlementMap[settlementId]`** — per-settlement override (e.g., Lake-Town `town_S1` = 9× Peasant + 1× Levy).
+3. **`ClanMap[ownerClanId]`** — per-clan override (e.g., all 11 `clan_vlandia_*` recruit all 7 Rohan basic troops).
+4. **`CultureMap[cultureId]`** — culture-level fallback.
+
+When you add an entry to a higher-priority map, lower-priority entries are **shadowed** for that settlement/clan — not merged. If you want per-settlement to extend (not replace) the culture pool, you must copy the culture entries into the settlement entry explicitly.
+
+## Per-Tier Explicit Armor Pattern (use when authoring a culture's tree)
+
+Don't rely on the generic `_armor_suffix(tier, variant)` tier→suffix table for new cultures. Use explicit-suffix helpers that take a literal `a01`..`b04` string:
+
+| Helper (in `tools/generate_dale_troops.py`) | Mesh class | Solus spelling quirk |
+|---|---|---|
+| `chivalry_armor_explicit(suffix)` | cavalry (chivlary + chivalry chest) | chest uses `chivalry`, other 4 slots use `chivlary` typo |
+| `infantry_armor_explicit(suffix)` | royal infantry | `infrantry` typo throughout |
+| `archer_armor_explicit(suffix)` | archer / crossbowman | shoulder fallback for missing `a02/b02` variants |
+| `lake_town_armor_explicit(suffix, no_helmet=, no_shoulder=, no_bracers=)` | Lake-Town mariner | shoulder fallback `a02→a01, a04→a03, b02→b01, b04→b03` |
+
+Color convention: `a` = bronze, `b` = silver. Light lines use `a`, heavy lines use `b` (or invert per user spec — Dale's cavalry inverts this).
+
+## "Royal Goes Last" Naming Convention
+
+Across all Dale lines, "Royal" is reserved for the highest-rank tier (typically T7). "Master" is the T6 stepping-stone. If you author a chain with both, "Royal" must be on the more elite troop. If only "Master" exists (no "Royal" sibling in the line), it's fine to leave "Master" at the top.
+
+This is a DOTS-wide convention as of Dale (May 2026). Apply when authoring new culture trees.
+
+## Cross-Reference Vanilla Weapon Stats Before Tier-Ordered Picks
+
+Names don't imply tier. Codex Review #227 caught Dale's `lowland_yew_bow` placed at T5 while `lowland_longbow` at T6, but vanilla stats: yew = higher difficulty / damage / speed than longbow. The T5 archer could roll a stronger bow than its T6 upgrade.
+
+Before committing tier-ordered weapons (bows, crossbows, polearms, swords), grep vanilla stats:
+
+```bash
+grep -A20 'id="<weapon_id>"' "<game>/Modules/SandBoxCore/ModuleData/items/weapons.xml" \
+  | grep -E 'difficulty|damage|missile_speed|speed'
+```
+
+Then sort by primary damage stat and assign tiers in ascending order.

@@ -1,0 +1,443 @@
+﻿using System.Collections.Generic;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.MapEvents;
+using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Roster;
+using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.Core;
+using TaleWorlds.Library;
+using TaleWorlds.Localization;
+using TaleWorlds.ScreenSystem;
+using DOTS.Core.Logging;
+
+namespace DOTS.Features.SpecialResources;
+
+public class SpecialResourcesBehavior : CampaignBehaviorBase
+{
+    private readonly ISpecialResourceService _service;
+    private readonly ISpecialResourceStorageService _storage;
+    private readonly ISpecialResourceConfigProvider _config;
+    private readonly IModLogger _logger;
+
+    public SpecialResourcesBehavior(
+        ISpecialResourceService service,
+        ISpecialResourceStorageService storage,
+        ISpecialResourceConfigProvider config,
+        IModLogger logger)
+    {
+        _service = service;
+        _storage = storage;
+        _config = config;
+        _logger = logger;
+    }
+
+    private PartyScreenLogic _activePartyScreenLogic;
+
+    // Phase 9b deferred #133 P2 — desertion grace flag. Set true in OnSessionLaunched +
+    // OnNewGameCreated; cleared at the end of OnDailyTickHero. Suppresses the desertion
+    // branch on the FIRST daily tick after a save load so a player who saved at
+    // balance=0 isn't punished before they get a chance to earn (battle / raid / etc.)
+    // in the new session. After the first tick (which lets income arrive and balance
+    // potentially flip positive), the desertion branch resumes normal operation.
+    private bool _isFirstTickAfterLoad = true;
+
+    public override void RegisterEvents()
+    {
+        CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
+        CampaignEvents.DailyTickHeroEvent.AddNonSerializedListener(this, OnDailyTickHero);
+        CampaignEvents.MapEventEnded.AddNonSerializedListener(this, OnMapEventEnded);
+        CampaignEvents.RaidCompletedEvent.AddNonSerializedListener(this, OnRaidCompleted);
+        CampaignEvents.OnPrisonerTakenEvent.AddNonSerializedListener(this, OnPrisonerTaken);
+        CampaignEvents.OnNewGameCreatedEvent.AddNonSerializedListener(this, OnNewGameCreated);
+        CampaignEvents.TournamentFinished.AddNonSerializedListener(this, OnTournamentFinished);
+        CampaignEvents.OnHideoutBattleCompletedEvent.AddNonSerializedListener(this, OnHideoutCompleted);
+        // Phase 9b #133 P1 — ScreenManager is static/global and outlives any campaign. New campaign
+        // in same process: a second behavior instance registers another listener; first instance's
+        // listener stays alive, calling _service.BeginPartyScreenSession() on the shared singleton
+        // service → resets _pendingSpend/_inSession for new campaign sessions, potentially
+        // cancelling legitimate spends. OnGameOverEvent is the only public lifecycle hook in
+        // v1.3.15 that fires when a campaign ends; CampaignBehaviorBase has no OnFinalize/OnGameEnd
+        // overrides. Best-effort: unsubscribe on game over. (If a player exits via main menu
+        // without "Game Over" firing, the listener is still orphaned — but the next campaign's
+        // ScreenManager.OnPushScreen += in its OWN RegisterEvents at least won't double-subscribe
+        // because the orphan listener was bound to the prior behavior instance, which is GC-eligible
+        // once its CampaignGameStarter is released.)
+        ScreenManager.OnPushScreen += OnScreenPushed;
+        CampaignEvents.OnGameOverEvent.AddNonSerializedListener(this, UnsubscribeScreenManager);
+    }
+
+    private bool _screenManagerSubscribed = true;
+
+    private void UnsubscribeScreenManager()
+    {
+        if (!_screenManagerSubscribed) return;
+        ScreenManager.OnPushScreen -= OnScreenPushed;
+        _screenManagerSubscribed = false;
+        _logger.LogInfo("[SpecRes] OnGameOver — unsubscribed from ScreenManager.OnPushScreen");
+    }
+
+    public override void SyncData(IDataStore dataStore)
+    {
+        _logger.LogInfo("[SpecRes] SyncData called (save/load)");
+        var data = _storage.GetAllData();
+        dataStore.SyncData("_dots_specialResources", ref data);
+        _storage.RestoreData(data);
+        _logger.LogInfo($"[SpecRes] SyncData restored {data?.Count ?? 0} entries");
+        // Phase 9b #133 P1 — pre-fix called _storage.ClampAll(playerResource.Cap) here. That
+        // applied the PLAYER's current resource cap to EVERY key in the dict (multi-hero,
+        // multi-resource saves). Gems (cap 600) got clamped to War Spoils' 500; Elven Wine
+        // clamped to 500 instead of 400. SyncData should be pure round-trip — per-resource
+        // cap belongs inside RestoreData/Set (keyed by resource), not here.
+    }
+
+    private void OnNewGameCreated(CampaignGameStarter starter)
+    {
+        var hero = Hero.MainHero;
+        if (hero == null) return;
+
+        // Phase 9b deferred #133 P2 R1 — clear singleton-scope service state so a second
+        // campaign in the same process can't inherit _inSession / _pendingSpend from the
+        // prior campaign. Must run BEFORE InitializeHero so any stale _loggedResolveKeys
+        // dedupe entries don't suppress the new campaign's first-resolve diagnostics.
+        _service.ResetSessionState();
+
+        GetHeroIds(hero, out var kingdomId, out var cultureId);
+        _service.InitializeHero(hero.StringId, kingdomId, cultureId);
+        _isFirstTickAfterLoad = true;
+        _logger.LogInfo($"SpecialResources: Initialized resource for {hero.Name}");
+    }
+
+    private void OnSessionLaunched(CampaignGameStarter starter)
+    {
+        _isFirstTickAfterLoad = true;
+
+        var hero = Hero.MainHero;
+        if (hero == null) return;
+
+        GetHeroIds(hero, out var kingdomId, out var cultureId);
+        var resource = _service.ResolveResource(kingdomId, cultureId);
+        if (resource == null) return;
+
+        // Phase 9b deferred #133 P2 — pre-fix this gate was `current <= 0f`, which seeded
+        // StartingAmount EVERY TIME OnSessionLaunched fired with balance==0 for the
+        // resolved resource. Two failure modes:
+        //   1. Kingdom-change in-session (Gondor → Mordor) — the new kingdom resolves
+        //      to a different SpecialResource the player has never owned. Balance==0
+        //      because they've never earned any → seeded as if it were a legacy save,
+        //      bypassing "earn it" progression.
+        //   2. Player spends down to 0, saves, reloads — re-seeded back up to
+        //      StartingAmount, effectively a refund.
+        // Fix: gate on storage.Contains, which is true iff the (hero, resource) pair has
+        // ever been written. A legacy save (predating SpecialResources) has zero entries
+        // for the player → Contains==false → seed once. After that, the key is present
+        // regardless of value, so no further seeding occurs.
+        var alreadyTracked = _storage.Contains(hero.StringId, resource.Id);
+        if (!alreadyTracked && resource.StartingAmount > 0f)
+        {
+            _storage.Set(hero.StringId, resource.Id, resource.StartingAmount);
+            _logger.LogInfo($"SpecialResources: Seeded {resource.DisplayName} = {resource.StartingAmount} for legacy save ({hero.Name})");
+        }
+        else if (!alreadyTracked)
+        {
+            // Resource has StartingAmount=0 but we still need to record the (hero, resource)
+            // pair so the next OnSessionLaunched doesn't re-evaluate it as "never seen."
+            // Write 0f explicitly — Set is idempotent.
+            _storage.Set(hero.StringId, resource.Id, 0f);
+        }
+    }
+
+    private void OnDailyTickHero(Hero hero)
+    {
+        if (hero != Hero.MainHero) return;
+
+        GetHeroIds(hero, out var kingdomId, out var cultureId);
+        var resource = _service.ResolveResource(kingdomId, cultureId);
+        if (resource == null)
+        {
+            _logger.LogDebug($"[SpecRes] DailyTick: no resource for hero (kingdom='{kingdomId}', culture='{cultureId}')");
+            // Clear the grace flag even on a no-resource tick so a kingdom change
+            // mid-session doesn't keep the flag set forever.
+            _isFirstTickAfterLoad = false;
+            return;
+        }
+
+        var ownedTowns = CountOwnedTowns(hero);
+        var troopUpkeep = GetTroopUpkeepFromParty(hero.PartyBelongedTo);
+
+        _service.ApplyDailyTick(hero.StringId, kingdomId, cultureId, ownedTowns, troopUpkeep);
+
+        // Check balance for warnings and desertion
+        var balance = _service.GetCurrentAmount(hero.StringId, kingdomId, cultureId);
+
+        // Phase 9b deferred #133 P2 — desertion grace. On the FIRST daily tick after a save
+        // load (or new-game start), suppress desertion. This protects a player who saved at
+        // balance=0 from immediate troop loss before they have any chance to earn income.
+        // The grace is one tick only: after this method returns we clear the flag, so the
+        // SECOND daily tick (one in-game day later) applies desertion as normal.
+        var inGracePeriod = _isFirstTickAfterLoad;
+
+        if (balance <= 0f && troopUpkeep.Count > 0 && !inGracePeriod)
+        {
+            // Desertion: remove troops from roster
+            var desertions = _service.CalculateDesertion(hero.StringId, kingdomId, cultureId, troopUpkeep);
+            var totalDeserted = ApplyDesertion(hero.PartyBelongedTo, desertions);
+
+            if (totalDeserted > 0)
+            {
+                MBInformationManager.AddQuickInformation(
+                    new TextObject($"{{=dots_res_desertion}}{totalDeserted} elite troops deserted — your {resource.DisplayName} are depleted!"),
+                    extraTimeInMs: 3000);
+            }
+        }
+        else if (balance <= 0f && troopUpkeep.Count > 0 && inGracePeriod)
+        {
+            _logger.LogInfo($"[SpecRes] DailyTick: desertion grace active (first tick after load) — {troopUpkeep.Count} upkeep troop types spared this tick");
+        }
+        else if (balance > 0f)
+        {
+            // Warn only when heading into a deficit: project the next daily tick (steady-state — same
+            // towns/party as this tick) and alert if it would push the balance to zero or below, which
+            // is exactly the threshold that triggers troop desertion. A low-but-stable balance (income
+            // covers upkeep) needs no warning.
+            var projectedNet = _service.GetProjectedDailyNet(hero.StringId, kingdomId, cultureId, ownedTowns, troopUpkeep);
+            if (balance + projectedNet <= 0f)
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    $"{resource.DisplayName} running out: {balance:F0} left, losing {-projectedNet:F0}/day",
+                    Colors.Yellow));
+            }
+        }
+
+        _isFirstTickAfterLoad = false;
+    }
+
+    private void OnMapEventEnded(MapEvent mapEvent)
+    {
+        if (!mapEvent.IsPlayerMapEvent) return;
+
+        var hero = Hero.MainHero;
+        GetHeroIds(hero, out var kingdomId, out var cultureId);
+        _logger.LogDebug($"[SpecRes] MapEventEnded: state={mapEvent.BattleState}, isSiege={mapEvent.IsSiegeAssault || mapEvent.IsSiegeOutside}");
+
+        if (mapEvent.BattleState == BattleState.AttackerVictory || mapEvent.BattleState == BattleState.DefenderVictory)
+        {
+            var isPlayerVictor = (mapEvent.AttackerSide.LeaderParty?.LeaderHero == hero && mapEvent.BattleState == BattleState.AttackerVictory)
+                || (mapEvent.DefenderSide.LeaderParty?.LeaderHero == hero && mapEvent.BattleState == BattleState.DefenderVictory);
+
+            if (!isPlayerVictor) return;
+
+            var enemySide = mapEvent.BattleState == BattleState.AttackerVictory
+                ? mapEvent.DefenderSide : mapEvent.AttackerSide;
+            var enemyCount = 0;
+            foreach (var p in enemySide.Parties)
+                enemyCount += p.Party?.NumberOfAllMembers ?? 0;
+
+            var playerCount = hero.PartyBelongedTo?.MemberRoster?.TotalManCount ?? 1;
+            var ratio = (float)enemyCount / playerCount;
+
+            var resource = _service.ResolveResource(kingdomId, cultureId);
+            var before = _service.GetCurrentAmount(hero.StringId, kingdomId, cultureId);
+
+            if (mapEvent.IsSiegeAssault || mapEvent.IsSiegeOutside)
+                _service.EarnFromSiege(hero.StringId, kingdomId, cultureId);
+            else
+                _service.EarnFromBattle(hero.StringId, kingdomId, cultureId, ratio);
+
+            if (resource != null)
+            {
+                var after = _service.GetCurrentAmount(hero.StringId, kingdomId, cultureId);
+                var earned = after - before;
+                if (earned > 0f)
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        $"+{earned:F0} {resource.DisplayName} earned from victory",
+                        Colors.Green));
+                }
+            }
+        }
+    }
+
+    private void OnRaidCompleted(BattleSideEnum side, RaidEventComponent component)
+    {
+        if (side != BattleSideEnum.Attacker) return;
+        if (component?.MapEvent == null || !component.MapEvent.IsPlayerMapEvent) return;
+
+        var hero = Hero.MainHero;
+        GetHeroIds(hero, out var kingdomId, out var cultureId);
+
+        _service.EarnFromRaid(hero.StringId, kingdomId, cultureId);
+        NotifyEarning(hero.StringId, kingdomId, cultureId, "raid");
+    }
+
+    private void OnPrisonerTaken(FlattenedTroopRoster roster)
+    {
+        var hero = Hero.MainHero;
+        GetHeroIds(hero, out var kingdomId, out var cultureId);
+
+        var count = 0;
+        if (roster != null)
+            foreach (var _ in roster)
+                count++;
+        if (count > 0)
+        {
+            var before = _service.GetCurrentAmount(hero.StringId, kingdomId, cultureId);
+            _service.EarnFromPrisoners(hero.StringId, kingdomId, cultureId, count);
+            NotifyEarningDelta(kingdomId, cultureId, hero.StringId, before, "prisoners");
+        }
+    }
+
+    private void OnTournamentFinished(CharacterObject winner, MBReadOnlyList<CharacterObject> participants, Town town, ItemObject prize)
+    {
+        if (winner != Hero.MainHero?.CharacterObject) return;
+
+        GetHeroIds(Hero.MainHero, out var kingdomId, out var cultureId);
+        _service.EarnFromTournament(Hero.MainHero.StringId, kingdomId, cultureId);
+        NotifyEarning(Hero.MainHero.StringId, kingdomId, cultureId, "tournament");
+    }
+
+    // v1.4.3 added the 3rd param HideoutBattleEndState; we don't act on it (any attacker win
+    // with a player map event still earns the resource).
+    private void OnHideoutCompleted(BattleSideEnum winnerSide, HideoutEventComponent component, HideoutEventComponent.HideoutBattleEndState battleEndState)
+    {
+        if (winnerSide != BattleSideEnum.Attacker) return;
+        if (component?.MapEvent == null || !component.MapEvent.IsPlayerMapEvent) return;
+
+        var hero = Hero.MainHero;
+        GetHeroIds(hero, out var kingdomId, out var cultureId);
+
+        _service.EarnFromHideout(hero.StringId, kingdomId, cultureId);
+        NotifyEarning(hero.StringId, kingdomId, cultureId, "hideout");
+    }
+
+    private void NotifyEarning(string heroId, string kingdomId, string cultureId, string source)
+    {
+        var resource = _service.ResolveResource(kingdomId, cultureId);
+        if (resource == null) return;
+
+        var amount = _service.GetCurrentAmount(heroId, kingdomId, cultureId);
+        InformationManager.DisplayMessage(new InformationMessage(
+            $"{resource.DisplayName} earned from {source} (total: {amount:F0})",
+            Colors.Green));
+    }
+
+    private void NotifyEarningDelta(string kingdomId, string cultureId, string heroId, float before, string source)
+    {
+        var resource = _service.ResolveResource(kingdomId, cultureId);
+        if (resource == null) return;
+
+        var after = _service.GetCurrentAmount(heroId, kingdomId, cultureId);
+        var earned = after - before;
+        if (earned > 0f)
+        {
+            InformationManager.DisplayMessage(new InformationMessage(
+                $"+{earned:F0} {resource.DisplayName} from {source}",
+                Colors.Green));
+        }
+    }
+
+    private int ApplyDesertion(MobileParty party, IReadOnlyList<TroopDesertionEntry> desertions)
+    {
+        if (party?.MemberRoster == null || desertions == null || desertions.Count == 0)
+            return 0;
+
+        var totalDeserted = 0;
+        foreach (var entry in desertions)
+        {
+            var character = CharacterObject.Find(entry.TroopId);
+            if (character == null) continue;
+
+            var index = party.MemberRoster.FindIndexOfTroop(character);
+            if (index < 0) continue;
+
+            var currentCount = party.MemberRoster.GetElementNumber(index);
+            var toRemove = System.Math.Min(entry.DesertCount, currentCount);
+            if (toRemove <= 0) continue;
+
+            party.MemberRoster.AddToCounts(character, -toRemove);
+            totalDeserted += toRemove;
+            _logger.LogInfo($"[SpecRes] Deserted: {entry.TroopId} x{toRemove}");
+        }
+
+        return totalDeserted;
+    }
+
+    private void OnScreenPushed(ScreenBase screen)
+    {
+        if (screen?.GetType().Name != "GauntletPartyScreen") return;
+
+        _service.BeginPartyScreenSession();
+    }
+
+    public void AttachToPartyScreen(PartyScreenLogic logic)
+    {
+        if (_activePartyScreenLogic != null) return;
+
+        _activePartyScreenLogic = logic;
+        _activePartyScreenLogic.PartyScreenClosedEvent += OnPartyScreenClosed;
+        _activePartyScreenLogic.AfterReset += OnPartyScreenReset;
+    }
+
+    private void OnPartyScreenClosed(
+        PartyBase leftOwner, TroopRoster leftMembers, TroopRoster leftPrisoners,
+        PartyBase rightOwner, TroopRoster rightMembers, TroopRoster rightPrisoners,
+        bool fromCancel)
+    {
+        if (_activePartyScreenLogic != null)
+        {
+            _activePartyScreenLogic.PartyScreenClosedEvent -= OnPartyScreenClosed;
+            _activePartyScreenLogic.AfterReset -= OnPartyScreenReset;
+            _activePartyScreenLogic = null;
+        }
+
+        if (fromCancel)
+        {
+            _service.CancelSession();
+        }
+        else
+        {
+            var hero = Hero.MainHero;
+            GetHeroIds(hero, out var kingdomId, out var cultureId);
+            _service.CommitSession(hero?.StringId, kingdomId, cultureId);
+        }
+    }
+
+    private void OnPartyScreenReset(PartyScreenLogic logic, bool fromCancel)
+    {
+        _service.CancelSession();
+        _service.BeginPartyScreenSession();
+    }
+
+    private static void GetHeroIds(Hero hero, out string kingdomId, out string cultureId)
+    {
+        kingdomId = hero?.Clan?.Kingdom?.StringId;
+        cultureId = hero?.Culture?.StringId;
+    }
+
+    private static int CountOwnedTowns(Hero hero)
+    {
+        var settlements = hero.Clan?.Settlements;
+        if (settlements == null) return 0;
+
+        var count = 0;
+        foreach (var settlement in settlements)
+            if (settlement.IsTown)
+                count++;
+        return count;
+    }
+
+    private List<TroopUpkeepInfo> GetTroopUpkeepFromParty(MobileParty party)
+    {
+        if (party?.MemberRoster == null) return _emptyUpkeep;
+
+        var result = new List<TroopUpkeepInfo>(8);
+        foreach (var element in party.MemberRoster.GetTroopRoster())
+        {
+            if (element.Character != null && _config.GetTroopCost(element.Character.StringId) != null)
+                result.Add(new TroopUpkeepInfo(element.Character.StringId, element.Number));
+        }
+
+        return result;
+    }
+
+    private static readonly List<TroopUpkeepInfo> _emptyUpkeep = new();
+}

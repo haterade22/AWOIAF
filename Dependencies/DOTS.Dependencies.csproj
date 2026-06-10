@@ -1,0 +1,92 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<Version>0.1.0</Version>
+		<Deterministic>true</Deterministic>
+		<PathMap>$(MSBuildProjectDirectory)=/_/</PathMap>
+		<ModuleId>DOTS.Dependencies</ModuleId>
+		<ModuleName>DOTS.Dependencies</ModuleName>
+		<NoWarn>$(NoWarn);8600;8601;8602;8603;8604;8618;8625;8374;8174</NoWarn>
+		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<LangVersion>preview</LangVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Reference Include="$(GameFolder)\bin\$(GameBinariesFolder)\TaleWorlds.*.dll"
+				   Exclude="$(GameFolder)\bin\$(GameBinariesFolder)\TaleWorlds.Native.dll;$(GameFolder)\bin\$(GameBinariesFolder)\TaleWorlds.CampaignSystem.dll">
+			<HintPath>%(Identity)</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Remove="_Module\bin\**" />
+		<EmbeddedResource Remove="_Module\bin\**" />
+		<None Remove="_Module\bin\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Bannerlord.BuildResources" Version="1.1.0.129">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+		<PackageReference Include="Harmony.Extensions" Version="3.2.0.77" PrivateAssets="all" />
+		<PackageReference Include="BUTR.Harmony.Analyzer" Version="1.0.1.50" PrivateAssets="all" />
+
+		<!-- DR3 (2026-05-22): replaced source-merge of Harmony decompile with PackageReferences.
+		     These DLLs deploy to bin/ alongside DOTS.Dependencies.dll and will be ILRepack'd into
+		     the merged output in a follow-up. Until then they ship as separate runtime DLLs. -->
+		<!-- DR3 (2026-05-22): version pins MUST match Main/DOTS.csproj's PackageReferences
+		     (which use IncludeAssets="compile"). Drift between compile-time (Main) and
+		     runtime (Dependencies) Harmony version creates real risk of MissingMethodException
+		     on features only in the newer version.
+		     2.4.2 is required because DOTS source uses HarmonyPatchCategoryAttribute
+		     (added in Harmony 2.3.0). All BUTR DLLs (ButterLib 2.10.4, UIExtenderEx 2.13.1,
+		     MCMv5 5.11.3) pin to `0Harmony Version=2.2.2.0` in their metadata. Since
+		     0Harmony.dll has PublicKeyToken=null (un-strong-named), the CLR's default
+		     binder matches by simple name and version mismatch does NOT block resolution
+		     in practice. SubModule.cs additionally registers an AssemblyResolve handler
+		     that explicitly returns the loaded 0Harmony for ANY requested version, as
+		     belt-and-braces against environments where strict binding is enforced. -->
+		<!-- WHEN BUMPING any of these three PackageReference versions: also bump the matching
+		     stub <Version> in Stubs/<ID>/_Module/SubModule.xml — third-party mods may pin via
+		     <DependedModuleMetadata version="..."/>. See docs/migration/dr3-maintenance.md
+		     "Stub modules" section + .serena/memories/task_completion_checklist.md. -->
+		<PackageReference Include="Lib.Harmony" Version="2.4.2" />
+		<PackageReference Include="Bannerlord.UIExtenderEx" Version="2.13.1" />
+		<PackageReference Include="Bannerlord.MCM" Version="5.11.4" />
+	</ItemGroup>
+
+	<Target Name="CopyBinariesToModuleFolder" BeforeTargets="PostBuildCopyToModules">
+		<MakeDir Directories="$(ProjectDir)_Module\bin\Gaming.Desktop.x64_Shipping_Client\" />
+		<MakeDir Directories="$(ProjectDir)_Module\bin\Win64_Shipping_Client\" />
+		<Copy SourceFiles="$(TargetDir)$(TargetFileName)" DestinationFolder="$(ProjectDir)_Module\bin\Gaming.Desktop.x64_Shipping_Client\" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="$(TargetDir)$(TargetFileName)" DestinationFolder="$(ProjectDir)_Module\bin\Win64_Shipping_Client\" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ProjectDir)_Module\bin\Gaming.Desktop.x64_Shipping_Client\" SkipUnchangedFiles="true" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+		<Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ProjectDir)_Module\bin\Win64_Shipping_Client\" SkipUnchangedFiles="true" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+	</Target>
+
+	<!-- DR3 follow-up (2026-05-22): deploy passive stub modules to the game install so that
+	     third-party mods declaring <DependedModule Id="Bannerlord.Harmony"/> etc. are no
+	     longer greyed out in the vanilla launcher's mod menu. Each stub is just a
+	     SubModule.xml that declares the standard BUTR module ID and has <SubModules />
+	     empty — no duplicate DLLs load. See docs/migration/dr3-maintenance.md "Stub
+	     modules" section. -->
+	<Target Name="DeployDOTSDependenciesStubs"
+	        AfterTargets="PostBuildCopyToModules"
+	        Condition="Exists($(GameFolder)) AND $(DisableModuleCopy) != 'true'">
+		<ItemGroup>
+			<!-- Explicit `**\SubModule.xml` (not `**\*.*`) so stray editor swap/backup
+			     files in Stubs/ never deploy. Deep-review 2026-05-25 caught the
+			     over-permissive glob. -->
+			<_DotsStubFiles Include="$(MSBuildThisFileDirectory)..\Stubs\**\SubModule.xml" />
+		</ItemGroup>
+		<Copy SourceFiles="@(_DotsStubFiles)"
+		      DestinationFiles="@(_DotsStubFiles->'$(GameFolder)\Modules\%(RecursiveDir)%(Filename)%(Extension)')"
+		      SkipUnchangedFiles="true" />
+		<Message Importance="high" Text="DOTS.Dependencies: deployed @(_DotsStubFiles->Count()) stub-module files to $(GameFolder)\Modules\" />
+	</Target>
+
+</Project>

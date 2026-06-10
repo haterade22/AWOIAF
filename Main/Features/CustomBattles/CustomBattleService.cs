@@ -1,0 +1,143 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
+using DOTS.Adapters;
+using DOTS.Core.Logging;
+
+namespace DOTS.Features.CustomBattles;
+
+public class CustomBattleService : ICustomBattleService
+{
+
+
+    private readonly IObjectManagerAdapter _objectManager;
+    private readonly IModLogger _logger;
+
+    private Dictionary<string, CultureInfo> _cultureCache;
+    private List<CharacterInfo> _characterCache;
+
+    public CustomBattleService(IObjectManagerAdapter objectManager, IModLogger logger)
+    {
+        _objectManager = objectManager;
+        _logger = logger;
+    }
+
+    public IReadOnlyList<string> GetFactionIds()
+    {
+        try
+        {
+            return GetCultureCache().Values
+                .Where(c => c.CanHaveSettlement && !c.IsBandit)
+                .Select(c => c.Id)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"CustomBattleService: Failed to get faction IDs: {ex.Message}");
+            return new List<string>();
+        }
+    }
+
+    public IReadOnlyList<string> GetCommanderIds()
+    {
+        try
+        {
+            return GetCharacterCache()
+                .Where(IsValidCommander)
+                .Select(c => c.Id)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"CustomBattleService: Failed to get commander IDs: {ex.Message}");
+            return new List<string>();
+        }
+    }
+
+    public IReadOnlyList<string> GetCommanderIdsForFaction(string factionId)
+    {
+        return GetCommanderIdsForFaction(factionId, int.MaxValue);
+    }
+
+    public IReadOnlyList<string> GetCommanderIdsForFaction(string factionId, int takeMax)
+    {
+        if (string.IsNullOrEmpty(factionId) || takeMax <= 0)
+            return new List<string>();
+
+        try
+        {
+            return GetCharacterCache()
+                .Where(c => IsValidCommander(c) &&
+                            string.Equals(c.CultureId, factionId, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
+                .Take(takeMax)
+                .Select(c => c.Id)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"CustomBattleService: Failed to get commanders for faction '{factionId}': {ex.Message}");
+            return new List<string>();
+        }
+    }
+
+    public string GetDefaultTroopIdForFormation(string factionId, int formationIndex)
+    {
+        if (string.IsNullOrEmpty(factionId))
+            return null;
+
+        try
+        {
+            var cache = GetCultureCache();
+            if (!cache.TryGetValue(factionId.ToLowerInvariant(), out var culture))
+                return null;
+
+            return formationIndex switch
+            {
+                0 => culture.MeleeMilitiaTroopId ?? culture.BasicTroopId,
+                1 => culture.RangedMilitiaTroopId,
+                2 => culture.EliteBasicTroopId,
+                3 => culture.RangedEliteMilitiaTroopId,
+                _ => culture.BasicTroopId
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"CustomBattleService: Failed to get troop for formation {formationIndex}: {ex.Message}");
+            return null;
+        }
+    }
+
+    private Dictionary<string, CultureInfo> GetCultureCache()
+    {
+        if (_cultureCache != null)
+            return _cultureCache;
+
+        _cultureCache = _objectManager.GetAllCultureInfos()
+            .Where(c => !string.IsNullOrEmpty(c.Id))
+            .ToDictionary(c => c.Id.ToLowerInvariant(), c => c);
+
+        return _cultureCache;
+    }
+
+    private List<CharacterInfo> GetCharacterCache()
+    {
+        if (_characterCache != null)
+            return _characterCache;
+
+        _characterCache = _objectManager.GetAllCharacterInfos().ToList();
+        return _characterCache;
+    }
+
+    private static readonly Regex _kingdomLordId =
+        new Regex(@"^lord_[A-Za-z0-9]+_[A-Za-z0-9]+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static bool IsValidCommander(CharacterInfo c)
+    {
+        if (!c.IsHero || string.IsNullOrEmpty(c.Id))
+            return false;
+
+        return _kingdomLordId.IsMatch(c.Id);
+    }
+}

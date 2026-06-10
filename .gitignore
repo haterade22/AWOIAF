@@ -1,0 +1,128 @@
+# Build outputs
+bin/
+obj/
+_Module/bin/
+TestResults/
+out/
+
+# Tool backups: rebalance/audit scripts write <file>.bak before destructive edits
+# (see tools/README.md "XML I/O convention"). Git is the real backup — never commit these.
+*.bak
+
+# DR3 (2026-05-22): exceptions for bundled BUTR runtime DLLs in
+# TAOM.Dependencies module. These are MAINTAINED-VENDOR — manually copied
+# from Steam Workshop downloads (see docs/migration/dr3-maintenance.md) so
+# the build is self-contained without external module dependencies. The
+# locally-built TAOM.Dependencies.dll + .pdb still get ignored (regenerated
+# on every build).
+# Note: gitignore exceptions need the PARENT dirs un-ignored first because
+# the top-level `bin/` rule matches everywhere.
+!Dependencies/_Module/bin/
+!Dependencies/_Module/bin/Win64_Shipping_Client/
+# Gaming.Desktop sibling contains only build outputs (TAOM.Dependencies.dll +
+# NuGet runtime deps) — fully ignored; Bannerlord on Windows reads Win64.
+Dependencies/_Module/bin/Gaming.Desktop.x64_Shipping_Client/
+# But still ignore everything in Win64 by default — only allow the
+# specific BUTR-vendored DLLs.
+Dependencies/_Module/bin/Win64_Shipping_Client/*
+!Dependencies/_Module/bin/Win64_Shipping_Client/Bannerlord.ButterLib*.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/Bannerlord.MBOptionScreen*.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/Bannerlord.ModuleLoader.*.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/BUTR.CrashReport*.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/MCM.UI.Adapter.*.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/Microsoft.Extensions.*.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/Microsoft.Bcl.HashCode.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/Serilog*.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/System.Buffers.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/System.Collections.Immutable.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/System.Memory.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/System.Numerics.Vectors.dll
+!Dependencies/_Module/bin/Win64_Shipping_Client/System.Reflection.Metadata.dll
+
+# Vendored runtime DLLs for Main module. Top-level `bin/` + `_Module/bin/`
+# rules above ignore everything by default — un-ignore the specific DLLs
+# we ship. TAOM.dll + TAOM.pdb stay ignored (build outputs, regenerated
+# by `dotnet build`). MCMv5.dll is provided by TAOM.Dependencies + the
+# Bannerlord.MCM NuGet — NOT vendored here. TAOM.NativeSkinFixes.dll is
+# TAOM-owned C++ rebuilt outside this repo; drop the new .dll here and
+# commit when it changes.
+!Main/_Module/bin/
+!Main/_Module/bin/Win64_Shipping_Client/
+Main/_Module/bin/Win64_Shipping_Client/*
+# BehaviorTrees.dll + BehaviorTreeWrapper.dll allowlists removed 2026-05-24 —
+# both libraries are now inlined in TAOM source (Main/BehaviorTrees/ +
+# Main/BehaviorTreeWrapper/) and compile into TAOM.dll. No standalone DLLs.
+!Main/_Module/bin/Win64_Shipping_Client/MinHook.x64.dll
+!Main/_Module/bin/Win64_Shipping_Client/TAOM.NativeSkinFixes.dll
+# Gaming.Desktop sibling: build outputs only — stays ignored.
+Main/_Module/bin/Gaming.Desktop.x64_Shipping_Client/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.csproj.user
+
+# Rider
+.idea/
+
+# NuGet
+packages/
+
+# Logs
+*.log
+.claude/logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Windows NUL device artifact (created when running Windows commands in bash)
+nul
+
+# Local MCP configuration (contains machine-specific paths)
+.vscode/mcp.json
+tools/runes/raw_ai/
+tools/runes/preview/
+
+# Translator artifacts (backups/exports kept locally, not in repo)
+Main/_Module/ModuleData/Languages/*.zip
+
+# Node tool dependencies (FBX/TPAC analysis tools — install via npm)
+tools/node_modules/
+
+# Claude Code / Codex transient runtime state
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+.codex-temp/
+.dotnet-cli-home/
+
+# Python bytecode caches (anywhere under tools/)
+tools/**/__pycache__/
+tools/**/*.pyc
+
+# Audit-MeshRefs.ps1 report output (regenerated per run)
+tools/reports/
+
+# Serena MCP code-indexing cache
+.serena/cache/
+.serena/project.local.yml
+
+# DR3 source-merge: vendored upstream BUTR + Harmony + MonoMod + Cecil source (downloaded fresh from GitHub tags each session — see docs/migration/dr3-mcm-internalization-plan.md)
+Dependencies/.vendor-source/
+
+# Skill state files (per-skill working state — context snapshots, autonomous-loop
+# results.tsv, etc.). Per ADR-010 + lint-cleanup-loop skill, autonomous campaigns
+# follow karpathy/autoresearch's pattern of an untracked results.tsv plus
+# transient state files.
+.claude/state/
+
+# Knowledge-base raw materials (see docs/raw/README.md + ADR-010):
+# Large binary source materials (PDFs, screenshots, video) live alongside the
+# markdown summaries but should not bloat the repo. Markdown + small inline
+# images < 500KB commit normally; large binaries are user-local only.
+docs/raw/**/*.pdf
+docs/raw/**/*.mp4
+docs/raw/**/*.mov
+docs/raw/**/*.zip
+docs/raw/**/*.tar.gz

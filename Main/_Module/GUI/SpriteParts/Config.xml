@@ -1,0 +1,20 @@
+﻿<Config>
+  <SpriteCategory Name="ui_dots_bannericons">
+    <AlwaysLoad />
+  </SpriteCategory>
+  <SpriteCategory Name="ui_loading">
+    <AlwaysLoad />
+  </SpriteCategory>
+  <SpriteCategory Name="ui_taom">
+		<AlwaysLoad />
+	</SpriteCategory>
+  <SpriteCategory Name="ui_dots_career_system">
+    <AlwaysLoad />
+  </SpriteCategory>
+  <SpriteCategory Name="ui_custom_fonts">
+        <PackAllSpritesToUniqueTextures/>
+        <SingleChannel/>
+        <AlwaysLoad/>
+        <EdgeSize Value="0" />
+    </SpriteCategory>
+</Config>

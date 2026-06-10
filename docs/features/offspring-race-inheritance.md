@@ -1,0 +1,64 @@
+﻿# Offspring Race Inheritance (LOTR-Style)
+
+## Overview
+
+DOTS uses same-sex parent race inheritance: male children inherit the father's race and appearance, female children inherit the mother's race and facial features. This is thematically appropriate for Middle-earth — sons take after their fathers, daughters take after their mothers.
+
+## Why This Exists
+
+Vanilla Bannerlord uses the same same-sex parent logic, but includes a `Debug.SilentAssert` that checks `mother.Race == father.Race`. This is a soft assert — it only logs, never crashes or prevents execution. Since cross-race couples are expected in Middle-earth, this assert fires harmlessly and is ignored.
+
+## Architecture
+
+**DotsHeroCreationModel** (GameModel override) overrides `GetCharacterTemplateForOffspring` to use same-sex parent logic: male children get `father.CharacterObject`, female children get `mother.CharacterObject`. This matches vanilla behavior but is explicitly defined so DOTS controls the logic.
+
+### Component Diagram
+
+```
+DotsHeroCreationModel (GameModel)
+  └─ GetCharacterTemplateForOffspring
+        ├─ male child  → father.CharacterObject (father's race)
+        └─ female child → mother.CharacterObject (mother's race)
+              │
+              ▼
+HeroCreator.DeliverOffSpring (vanilla, static)
+  └─ Debug.SilentAssert ← harmless soft assert, ignored
+              │
+              ▼
+  CreateHero(template) → CharacterObject.CreateFrom(parent)
+              │            └─ FillFrom copies Race from same-sex parent
+              ▼
+  New Hero with same-sex parent's race
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `Main/Features/RaceAge/Models/DotsHeroCreationModel.cs` | GameModel — same-sex parent CharacterObject used as offspring template |
+
+## Integration
+
+- `DotsHeroCreationModel` registered in `SubModule.OnGameStart` via `campaignStarter.AddModel()`
+
+## Dependencies
+
+- None beyond standard TaleWorlds assemblies
+
+## Relationship to RaceAge Feature
+
+This is part of the broader RaceAge feature. The race inherited by offspring determines which age/fertility config applies to them from `race_age_config.json`. A child born to a Human father will have Human lifespan (85 years) and Human fertility rates, regardless of the mother's race.
+
+## Face Generation Note
+
+Vanilla's `GetStaticBodyProperties` method for offspring uses `hero.Mother.CharacterObject.Race` for face mesh generation — always the mother's race, regardless of the child's actual race. This means a child of a Human father and Elf mother will have the father's race (Human) but facial features generated from the Elf mesh. This is deferred as a cosmetic issue — in most cases the visual difference is minimal, and it could be argued as lore-appropriate (half-elven features).
+
+---
+
+<!-- backlinks-start auto-generated; edit lint_docs.py / build_backlinks.py to change -->
+
+## Referenced by
+
+- [docs/INDEX.md](../INDEX.md)
+
+<!-- backlinks-end -->

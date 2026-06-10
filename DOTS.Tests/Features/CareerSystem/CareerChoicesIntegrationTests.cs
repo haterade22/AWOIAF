@@ -1,0 +1,115 @@
+﻿using System;
+using System.IO;
+using System.Linq;
+using System.Xml.Linq;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NSubstitute;
+using DOTS.Core.Infrastructure;
+using DOTS.Core.Logging;
+using DOTS.Features.CareerSystem;
+using DOTS.Features.CareerSystem.Domain;
+
+namespace DOTS.Tests.Features.CareerSystem;
+
+/// <summary>
+/// Integration guard against the class of bug behind issues #249/#250: config the content
+/// uses but the parser/consumer doesn't support, invisible to synthetic-XML unit tests.
+/// Loads the REAL shipped dots_career_choices.xml — the only way to catch a schema drift like
+/// the 310 dead <PassiveEffects>-wrapped choices. See
+/// docs/reviews/rca-career-partysize-2026-05-29.md + memory feedback_parse_real_config_in_tests.
+/// </summary>
+[TestClass]
+public class CareerChoicesIntegrationTests
+{
+    private static string ModuleDataPath => Path.GetFullPath(
+        Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+            @"..\..\..\..\Main\_Module\ModuleData"));
+
+    private CareerConfigProvider _provider = null!;
+
+    [TestInitialize]
+    public void Setup()
+    {
+        var pathService = Substitute.For<IPathService>();
+        pathService.ModuleDataPath.Returns(ModuleDataPath);
+        _provider = new CareerConfigProvider(pathService, Substitute.For<IModLogger>());
+    }
+
+    [TestMethod]
+    public void RealChoicesXml_Loads_NonEmpty()
+    {
+        Assert.IsTrue(File.Exists(Path.Combine(ModuleDataPath, "career_system", "dots_career_choices.xml")),
+            $"real dots_career_choices.xml not found under {ModuleDataPath}");
+        // Bootstrap: GoT career choices not yet authored — 0 entries is acceptable.
+        // Raise this threshold (e.g. Count > 100) when GoT career choices are authored.
+        var choices = _provider.LoadChoices();
+        Assert.IsNotNull(choices, "dots_career_choices.xml should parse without error");
+    }
+
+    [TestMethod]
+    public void RealChoicesXml_EveryPassiveChoice_ParsesNonNullPassive()
+    {
+        // The wrapped-schema bug (#250): 310 <PassiveEffects> choices parsed to a null Passive
+        // because ParseChoice only read a direct <PassiveEffect> child + magnitude=. Every
+        // type="Passive" choice MUST yield a parsed PassiveEffect — this asserts it against the
+        // real file so any future schema drift fails CI immediately.
+        var dead = _provider.LoadChoices()
+            .Where(c => c.Type == ChoiceType.Passive && c.Passive == null)
+            .Select(c => c.Id)
+            .ToList();
+
+        Assert.AreEqual(0, dead.Count,
+            "Every type=\"Passive\" choice must parse to a non-null PassiveEffect. Dead choices: "
+            + string.Join(", ", dead));
+    }
+
+    [TestMethod]
+    public void RealChoicesXml_NoPassiveEffect_DefaultsToSpecialType()
+    {
+        // Guard against an unrecognized/typo'd type= silently defaulting to PassiveEffectType.Special
+        // (the ParseEnum fallback) — a parsed-but-inert passive.
+        var special = _provider.LoadChoices()
+            .Where(c => c.Passive != null && c.Passive.EffectType == PassiveEffectType.Special)
+            .Select(c => c.Id)
+            .ToList();
+
+        Assert.AreEqual(0, special.Count,
+            "No PassiveEffect should fall back to type=Special (unrecognized type=). Offenders: "
+            + string.Join(", ", special));
+    }
+
+    [TestMethod]
+    public void RealChoicesXml_EveryPassiveEffectsWrapper_HasExactlyOneChild()
+    {
+        // Codex review 2026-05-29 hardening: the parser reads only the FIRST <PassiveEffect> inside
+        // a <PassiveEffects> wrapper. A multi-child wrapper would silently drop child 2+. Assert the
+        // single-child invariant on the real file so future multi-child authoring fails CI.
+        var xml = XDocument.Load(Path.Combine(ModuleDataPath, "career_system", "dots_career_choices.xml"));
+        var multiChild = xml.Descendants("PassiveEffects")
+            .Where(w => w.Elements("PassiveEffect").Count() != 1)
+            .Select(w => (string?)w.Parent?.Attribute("id") ?? "(unknown)")
+            .ToList();
+
+        Assert.AreEqual(0, multiChild.Count,
+            "Every <PassiveEffects> wrapper must hold exactly one <PassiveEffect> (parser drops extras). "
+            + "Offending choices: " + string.Join(", ", multiChild));
+    }
+
+    [TestMethod]
+    public void RealChoicesXml_EveryParsedPassive_HasFiniteNonZeroMagnitude()
+    {
+        // Codex review 2026-05-29 hardening: a malformed value=/magnitude= parses to 0 (ParseFloat
+        // default), which still passes the non-null + recognized-type checks but is an inert passive.
+        // Assert every parsed magnitude is finite and non-zero against the real file.
+        var bad = _provider.LoadChoices()
+            .Where(c => c.Passive != null
+                && (float.IsNaN(c.Passive.Magnitude) || float.IsInfinity(c.Passive.Magnitude)
+                    || c.Passive.Magnitude == 0f))
+            .Select(c => c.Id)
+            .ToList();
+
+        Assert.AreEqual(0, bad.Count,
+            "Every parsed PassiveEffect must have a finite, non-zero magnitude. Offenders: "
+            + string.Join(", ", bad));
+    }
+}

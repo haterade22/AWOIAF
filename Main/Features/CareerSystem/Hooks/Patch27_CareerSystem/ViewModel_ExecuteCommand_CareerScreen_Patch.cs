@@ -1,0 +1,22 @@
+﻿using HarmonyLib;
+using TaleWorlds.CampaignSystem.ViewModelCollection.CharacterDeveloper;
+using TaleWorlds.Library;
+using DOTS.Features.CareerSystem.UI;
+
+namespace DOTS.Features.CareerSystem.Hooks.Patch27_CareerSystem;
+
+[HarmonyPatch(typeof(ViewModel), "ExecuteCommand")]
+[HarmonyPatchCategory("Patch27_CareerSystem")]
+public static class ViewModel_ExecuteCommand_CareerScreen_Patch
+{
+    static void Postfix(ViewModel __instance, string commandName, object[] parameters)
+    {
+        if (commandName == "ExecuteOpenCareerScreen" && __instance is CharacterDeveloperVM charDevVM)
+        {
+            // Close CharacterDeveloper first (TOR pattern) — prevents
+            // GameState.HandleInitialize NullRef and map bar input crash
+            charDevVM.ExecuteDone();
+            GauntletCareerScreen.OpenCareerScreen();
+        }
+    }
+}

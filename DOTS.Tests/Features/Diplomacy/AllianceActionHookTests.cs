@@ -1,0 +1,75 @@
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NSubstitute;
+using DOTS.Core.Logging;
+using DOTS.Features.Diplomacy;
+using DOTS.Features.Diplomacy.Hooks;
+using DOTS.Features.Diplomacy.Models;
+
+namespace DOTS.Tests.Features.Diplomacy;
+
+[TestClass]
+public class AllianceActionHookTests
+{
+    private IDiplomacyService _diplomacyService;
+    private IModLogger _logger;
+    private AllianceActionHook _sut;
+
+    [TestInitialize]
+    public void Setup()
+    {
+        _diplomacyService = Substitute.For<IDiplomacyService>();
+        _logger = Substitute.For<IModLogger>();
+        _sut = new AllianceActionHook(_diplomacyService, _logger);
+    }
+
+    [TestMethod]
+    public void ShouldPreventAllianceEnd_PermanentAllies_ReturnsTrue()
+    {
+        _diplomacyService.GetRelationshipTier("empire_w", "vlandia")
+            .Returns(AllianceTier.Permanent);
+
+        Assert.IsTrue(_sut.ShouldPreventAllianceEnd("empire_w", "vlandia"));
+    }
+
+    [TestMethod]
+    public void ShouldPreventAllianceEnd_NaturalAllies_ReturnsFalse()
+    {
+        _diplomacyService.GetRelationshipTier("erebor", "mirkwood")
+            .Returns(AllianceTier.Natural);
+
+        Assert.IsFalse(_sut.ShouldPreventAllianceEnd("erebor", "mirkwood"));
+    }
+
+    [TestMethod]
+    public void ShouldPreventAllianceEnd_NeutralKingdoms_ReturnsFalse()
+    {
+        _diplomacyService.GetRelationshipTier("battania", "aserai")
+            .Returns(AllianceTier.Neutral);
+
+        Assert.IsFalse(_sut.ShouldPreventAllianceEnd("battania", "aserai"));
+    }
+
+    [TestMethod]
+    public void ShouldPreventWarDeclaration_WarBlocked_ReturnsTrue()
+    {
+        _diplomacyService.IsWarAllowed("empire_w", "vlandia").Returns(false);
+
+        Assert.IsTrue(_sut.ShouldPreventWarDeclaration("empire_w", "vlandia"));
+    }
+
+    [TestMethod]
+    public void ShouldPreventWarDeclaration_WarAllowed_ReturnsFalse()
+    {
+        _diplomacyService.IsWarAllowed("empire_w", "empire_s").Returns(true);
+
+        Assert.IsFalse(_sut.ShouldPreventWarDeclaration("empire_w", "empire_s"));
+    }
+
+    [TestMethod]
+    public void ShouldPreventWarDeclaration_NeutralKingdoms_ReturnsFalse()
+    {
+        _diplomacyService.IsWarAllowed("battania", "aserai").Returns(true);
+
+        Assert.IsFalse(_sut.ShouldPreventWarDeclaration("battania", "aserai"));
+    }
+}

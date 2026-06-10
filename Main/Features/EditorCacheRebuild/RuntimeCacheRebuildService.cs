@@ -1,0 +1,476 @@
+﻿using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using TaleWorlds.Core;
+using TaleWorlds.Library;
+using DOTS.Adapters;
+using DOTS.Core.Infrastructure;
+using DOTS.Core.Logging;
+using DOTS.Features.EditorCacheRebuild.Progress;
+
+namespace DOTS.Features.EditorCacheRebuild;
+
+public class RuntimeCacheRebuildService : IRuntimeCacheRebuildService
+{
+    private readonly IDistanceCacheBuilderService _builderService;
+    private readonly ICacheRebuildConfigProvider _configProvider;
+    private readonly IPathService _pathService;
+    private readonly ICampaignSessionAdapter _sessionAdapter;
+    private readonly IModLogger _logger;
+
+    private int _runningFlag;
+
+    public RuntimeCacheRebuildService(
+        IDistanceCacheBuilderService builderService,
+        ICacheRebuildConfigProvider configProvider,
+        IPathService pathService,
+        ICampaignSessionAdapter sessionAdapter,
+        IModLogger logger)
+    {
+        _builderService = builderService;
+        _configProvider = configProvider;
+        _pathService = pathService;
+        _sessionAdapter = sessionAdapter;
+        _logger = logger;
+    }
+
+    public bool IsRunning => Volatile.Read(ref _runningFlag) != 0;
+
+    public bool Trigger()
+    {
+        var buildId = NewBuildId();
+        var tag = $"[RuntimeCacheRebuild#{buildId}]";
+
+        _logger.LogInfo($"{tag} ====================== TRIGGER REQUEST ======================");
+        LogEnvironment(tag);
+
+        if (!_sessionAdapter.IsReadyForRebuild(out var reason))
+        {
+            Notify($"Cache rebuild not ready: {reason}");
+            _logger.LogWarning($"{tag} REJECTED: {reason}");
+            return false;
+        }
+
+        try
+        {
+            LogCampaignSnapshot(tag);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning($"{tag} pre-flight campaign snapshot failed: {ex.GetType().Name}: {ex.Message} — continuing anyway");
+        }
+
+        if (Interlocked.CompareExchange(ref _runningFlag, 1, 0) != 0)
+        {
+            Notify("Cache rebuild already in progress — check log for status.");
+            _logger.LogWarning($"{tag} REJECTED: another build is already running (IsRunning=true).");
+            return false;
+        }
+
+        Notify("DOTS cache rebuild starting in background. This may take 10-30 minutes. Game stays playable but pathfinding queries during the rebuild may be inconsistent.");
+        _logger.LogInfo($"{tag} ACCEPTED — spawning background task on threadpool. Watch this log for phase progress.");
+
+        SpawnBuild(buildId, tag);
+        return true;
+    }
+
+    /// <summary>
+    /// Virtual so unit tests can override and run the build synchronously on the caller's thread,
+    /// avoiding flaky timing around <see cref="Task.Run"/>.
+    /// </summary>
+    internal virtual void SpawnBuild(string buildId, string tag)
+    {
+        Task.Run(() => RunBuild(buildId, tag));
+    }
+
+    private void RunBuild(string buildId, string tag)
+    {
+        var overallSw = Stopwatch.StartNew();
+        long memBefore = -1;
+        try
+        {
+            memBefore = GC.GetTotalMemory(forceFullCollection: false);
+            _logger.LogInfo($"{tag} ====================== BUILD STARTING ======================");
+            _logger.LogInfo($"{tag} background thread id={Thread.CurrentThread.ManagedThreadId}, isThreadPool={Thread.CurrentThread.IsThreadPoolThread}, memBaseline={FormatBytes(memBefore)}");
+
+            var config = _configProvider.GetConfig();
+            _logger.LogInfo($"{tag} config: enabled={config.Enabled}, forceVanilla={config.ForceVanilla}, parallelism={config.Parallelism}, smokeTestPairs={config.SmokeTestPairs}, enableCheckpoint={config.EnableCheckpoint}, enableIncremental={config.EnableIncremental}");
+            if (!config.Enabled || config.ForceVanilla)
+            {
+                _logger.LogWarning($"{tag} ABORT: feature disabled (enabled={config.Enabled}, forceVanilla={config.ForceVanilla}). Edit Main/_Module/ModuleData/configs/cache_rebuild_config.json to re-enable.");
+                NotifyOnMainThread("Cache rebuild aborted: feature disabled in cache_rebuild_config.json.");
+                return;
+            }
+
+            _logger.LogInfo($"{tag} step 1/5: constructing runtime distance cache via ICampaignSessionAdapter");
+            var ctorSw = Stopwatch.StartNew();
+            var adapter = _sessionAdapter.CreateDefaultRuntimeCacheAdapter(_logger);
+            ctorSw.Stop();
+            _logger.LogInfo($"{tag} step 1/5 OK: cache + adapter constructed in {ctorSw.ElapsedMilliseconds}ms, NavigationType={adapter.NavigationType}");
+
+            try
+            {
+                var (sceneCrc, navMeshCrc) = adapter.GetSceneCrcValues();
+                _logger.LogInfo($"{tag} scene CRCs: scene=0x{sceneCrc:X8}, navMesh=0x{navMeshCrc:X8}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"{tag} could not read scene CRCs (non-fatal): {ex.GetType().Name}: {ex.Message}");
+            }
+
+            try
+            {
+                var settlements = adapter.GetAllRegisteredSettlements();
+                var fortifications = settlements.Count(s => s.IsFortification);
+                var ports = settlements.Count(s => s.HasPort);
+                _logger.LogInfo($"{tag} settlement census: total={settlements.Count}, fortifications={fortifications}, ports={ports}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"{tag} could not enumerate settlements (non-fatal at this point — Build will fail loudly): {ex.GetType().Name}: {ex.Message}");
+            }
+
+            var outputPath = ResolveCacheOutputPath(adapter.NavigationType.ToString());
+            LogOutputDiagnostics(tag, outputPath);
+
+            _logger.LogInfo($"{tag} step 2/5: handing off to CacheBuilderService.Build (Phase 0 + Phase 1 + Phase 2). Watch [CacheRebuild] tagged lines for per-phase progress.");
+            var buildSw = Stopwatch.StartNew();
+            var result = _builderService.Build(adapter, CancellationToken.None);
+            buildSw.Stop();
+            _logger.LogInfo($"{tag} step 2/5 OK: Build returned in {ProgressLogger.FormatDuration(buildSw.Elapsed)} (cancelled={result.Cancelled})");
+
+            if (result.Cancelled)
+            {
+                _logger.LogWarning($"{tag} build returned CANCELLED — output file NOT written. Existing cache file at {outputPath} is unchanged.");
+                NotifyOnMainThread("Cache rebuild cancelled. See log for details. Existing cache file unchanged.");
+                return;
+            }
+
+            // Capture the live distance count BEFORE serialization. In resume mode `result.Phase1.PairsComputed`
+            // is 0 (Phase 1 came from checkpoint), so we'd have nothing to compare against. The live
+            // adapter holds the merged state (deserialized + this run), which is what's about to go to disk.
+            // Codex finding P2-1 (2026-05-12).
+            var liveDistanceCount = adapter.EnumerateExistingDistances().Count();
+            _logger.LogInfo($"{tag} live state pre-serialize: distance entries = {liveDistanceCount:N0}");
+
+            _logger.LogInfo($"{tag} step 3/5: serializing cache to disk (atomic write via .tmp + File.Replace)");
+            var serializeSw = Stopwatch.StartNew();
+            WriteOutputAtomically(adapter, outputPath, tag);
+            serializeSw.Stop();
+            _logger.LogInfo($"{tag} step 3/5 OK: serialize completed in {serializeSw.ElapsedMilliseconds}ms");
+
+            _logger.LogInfo($"{tag} step 4/5: post-write verification (re-deserialize round-trip)");
+            var verification = VerifyOutputRoundTrip(outputPath, liveDistanceCount, result.Phase2.NeighborPairsAdded, tag);
+
+            overallSw.Stop();
+            var memAfter = GC.GetTotalMemory(forceFullCollection: false);
+
+            if (!verification.Ok)
+            {
+                _logger.LogError($"{tag} ====================== BUILD FAILED (verification) ======================");
+                _logger.LogError($"{tag} round-trip verification FAILED: {verification.Reason}. Output may be corrupt — restore '{outputPath}.prev' → '{outputPath}' if pathfinding breaks.");
+                NotifyFailure($"Cache rebuild verification FAILED: {verification.Reason}. The .prev backup is intact — see rgl_log_*.txt for restoration instructions.");
+                return;
+            }
+
+            var summary = string.Format(
+                "DOTS cache rebuild COMPLETE. Phase 1: {0} pairs in {1:F1}s. Phase 2: {2} neighbors in {3:F1}s. Smoke: {4}. Total wall: {5}. Output: {6}.",
+                result.Phase1.PairsComputed, result.Phase1.ElapsedSeconds,
+                result.Phase2.NeighborPairsAdded, result.Phase2.ElapsedSeconds,
+                result.SmokeTest.Outcome,
+                ProgressLogger.FormatDuration(overallSw.Elapsed),
+                Path.GetFileName(outputPath));
+            _logger.LogInfo($"{tag} step 5/5: ====================== BUILD COMPLETE ======================");
+            _logger.LogInfo($"{tag} {summary}");
+            _logger.LogInfo($"{tag} memory delta: before={FormatBytes(memBefore)}, after={FormatBytes(memAfter)}, peak-during={FormatBytes(memAfter - memBefore)}+");
+            NotifyOnMainThread(summary + " Load the next save to use it.");
+        }
+        catch (Exception ex)
+        {
+            overallSw.Stop();
+            _logger.LogError($"{tag} ====================== BUILD FAILED ======================");
+            _logger.LogError($"{tag} EXCEPTION on background thread after {ProgressLogger.FormatDuration(overallSw.Elapsed)}: {ex.GetType().FullName}: {ex.Message}");
+            _logger.LogError($"{tag} stack trace:\n{ex.StackTrace}");
+            if (ex.InnerException != null)
+                _logger.LogError($"{tag} inner exception: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
+            NotifyOnMainThread($"Cache rebuild FAILED: {ex.GetType().Name}: {ex.Message}. See log for full trace.");
+        }
+        finally
+        {
+            Volatile.Write(ref _runningFlag, 0);
+            _logger.LogInfo($"{tag} runningFlag cleared — IsRunning is now false. New triggers will be accepted.");
+        }
+    }
+
+    private void LogEnvironment(string tag)
+    {
+        _logger.LogInfo($"{tag} env: machineName={Environment.MachineName}, processorCount={Environment.ProcessorCount}, osVersion={Environment.OSVersion}, clr={Environment.Version}, is64Bit={Environment.Is64BitProcess}");
+        _logger.LogInfo($"{tag} env: workingSet={FormatBytes(Environment.WorkingSet)}, gcServer={System.Runtime.GCSettings.IsServerGC}, latencyMode={System.Runtime.GCSettings.LatencyMode}");
+        _logger.LogInfo($"{tag} env: moduleRoot={_pathService.ModuleRootPath}");
+    }
+
+    private void LogCampaignSnapshot(string tag)
+    {
+        var snap = _sessionAdapter.GetSnapshot();
+        _logger.LogInfo(
+            $"{tag} campaign snapshot: gameId={snap.GameId}, started={snap.StartTime}, current={snap.CurrentTime}, " +
+            $"settlements={snap.SettlementCount}, fortifications={snap.FortificationCount}, " +
+            $"towns={snap.TownCount}, castles={snap.CastleCount}, villages={snap.VillageCount}");
+        if (!string.IsNullOrEmpty(snap.MapSceneWrapperType))
+            _logger.LogInfo($"{tag} map scene wrapper: type={snap.MapSceneWrapperType}");
+    }
+
+    private void LogOutputDiagnostics(string tag, string outputPath)
+    {
+        _logger.LogInfo($"{tag} resolved output path: {outputPath}");
+        try
+        {
+            var directory = Path.GetDirectoryName(outputPath);
+            var dirExists = !string.IsNullOrEmpty(directory) && Directory.Exists(directory);
+            _logger.LogInfo($"{tag} output directory exists: {dirExists} ({directory})");
+
+            var finalExists = File.Exists(outputPath);
+            var prevPath = outputPath + ".prev";
+            var tempPath = outputPath + ".tmp";
+            var prevExists = File.Exists(prevPath);
+            var tempExists = File.Exists(tempPath);
+
+            if (finalExists)
+            {
+                var info = new FileInfo(outputPath);
+                _logger.LogInfo($"{tag} existing cache file: size={FormatBytes(info.Length)} ({info.Length:N0} bytes), modified={info.LastWriteTime:u}");
+            }
+            else
+            {
+                _logger.LogInfo($"{tag} no existing cache file at output path — this will be a fresh write.");
+            }
+
+            // Interrupted-write diagnostic: if there's no final file but a .prev exists, a previous
+            // atomic write was interrupted between the `final → .prev` and `.tmp → final` renames.
+            // The .prev file is the last-known-good cache; the user may want to restore it manually
+            // before triggering a fresh rebuild (or just let this rebuild produce a new final).
+            if (!finalExists && prevExists)
+            {
+                var prevInfo = new FileInfo(prevPath);
+                _logger.LogWarning(
+                    $"{tag} INTERRUPTED-WRITE DETECTED: final cache file is MISSING but '{prevPath}' exists " +
+                    $"(size={FormatBytes(prevInfo.Length)}, modified={prevInfo.LastWriteTime:u}). " +
+                    $"A previous atomic write was interrupted between rename steps. " +
+                    $"This rebuild will produce a new cache file. If you'd rather restore the prior cache, " +
+                    $"cancel and rename '{prevPath}' → '{outputPath}' before retrying.");
+            }
+
+            if (tempExists)
+            {
+                var tempInfo = new FileInfo(tempPath);
+                _logger.LogWarning(
+                    $"{tag} STALE TEMP FILE DETECTED: '{tempPath}' exists (size={FormatBytes(tempInfo.Length)}, " +
+                    $"modified={tempInfo.LastWriteTime:u}). A prior rebuild crashed during serialization. " +
+                    $"This file will be deleted before the new rebuild writes.");
+            }
+
+            if (dirExists)
+            {
+                try
+                {
+                    var drive = new DriveInfo(Path.GetPathRoot(outputPath));
+                    _logger.LogInfo($"{tag} target drive: {drive.Name}, free={FormatBytes(drive.AvailableFreeSpace)}, total={FormatBytes(drive.TotalSize)}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug($"{tag} could not query drive info: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning($"{tag} output diagnostics failed (non-fatal): {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    internal string ResolveCacheOutputPath(string navTypeName)
+    {
+        // _pathService.ModuleRootPath is .../Modules/DOTS. Distance cache lives in sibling
+        // module DOTS_Map. Walk up one level then into DOTS_Map/ModuleData/DistanceCaches.
+        var modulesDir = Path.GetFullPath(Path.Combine(_pathService.ModuleRootPath, ".."));
+        return Path.Combine(modulesDir, "DOTS_Map", "ModuleData", "DistanceCaches", $"settlements_distance_cache_{navTypeName}.bin");
+    }
+
+    internal virtual void WriteOutputAtomically(INavigationCacheAdapter adapter, string finalPath, string tag)
+    {
+        var directory = Path.GetDirectoryName(finalPath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            _logger.LogInfo($"{tag} creating missing output directory: {directory}");
+            Directory.CreateDirectory(directory);
+        }
+
+        // Vanilla Serialize writes directly to the path. Write to a temp file then atomic-rename
+        // so a crash mid-write can't corrupt the live cache file.
+        var tempPath = finalPath + ".tmp";
+        if (File.Exists(tempPath))
+        {
+            _logger.LogInfo($"{tag} removing stale temp file from prior aborted run: {tempPath}");
+            File.Delete(tempPath);
+        }
+
+        _logger.LogInfo($"{tag} writing to temp file: {tempPath}");
+        adapter.SerializeCache(tempPath);
+        var tempSize = new FileInfo(tempPath).Length;
+        _logger.LogInfo($"{tag} temp file written: {FormatBytes(tempSize)} ({tempSize:N0} bytes)");
+
+        if (File.Exists(finalPath))
+        {
+            // Codex P2-2 (2026-05-12): the old `Delete(.prev); Move(final → .prev); Move(.tmp → final)`
+            // sequence was three separate filesystem operations — a kill between steps 2 and 3 could
+            // leave the final cache file missing entirely. `File.Replace` is a single atomic Win32
+            // ReplaceFile call on NTFS: it swaps `final` for `.tmp` in one operation and writes the
+            // previous final contents into `backup` atomically. No window where `final` doesn't exist.
+            var backupPath = finalPath + ".prev";
+            _logger.LogInfo($"{tag} atomic replace: {tempPath} → {finalPath} (previous final → {backupPath})");
+            File.Replace(tempPath, finalPath, backupPath, ignoreMetadataErrors: true);
+        }
+        else
+        {
+            _logger.LogInfo($"{tag} no existing final file — promoting temp file directly: {tempPath} → {finalPath}");
+            File.Move(tempPath, finalPath);
+        }
+
+        var finalSize = new FileInfo(finalPath).Length;
+        _logger.LogInfo($"{tag} ATOMIC WRITE OK: {FormatBytes(finalSize)} live at {finalPath}");
+    }
+
+    // Allow up to 10% shortfall between expected and deserialized pair counts before warning.
+    // Vanilla's distance dict is keyed on the inner cache element (port-vs-gate variant); for
+    // NavigationType.Default we expect a 1:1 match with PairsComputed, but a small tolerance
+    // absorbs any structural differences (e.g., zero-distance pairs that vanilla SetSettlement-
+    // ToSettlementDistance silently dropped). A 90% shortfall would mean serialization truncated
+    // mid-stream — a real corruption signal.
+    private const double VerificationTolerance = 0.9;
+
+    // Vanilla AddNeighbor(s1, s2) inserts the relation in BOTH directions
+    // (`_fortificationNeighbors[s1] += s2` AND `_fortificationNeighbors[s2] += s1`) so symmetric
+    // lookups are O(1). EnumerateExistingNeighbors walks the dict and yields each direction, so
+    // the deserialized count is 2× the unique pair count we report in Phase2Result.
+    private const int NeighborDictDirectionsPerPair = 2;
+
+    internal virtual VerificationResult VerifyOutputRoundTrip(string outputPath, int expectedDistanceEntries, int expectedNeighborPairs, string tag)
+    {
+        try
+        {
+            // Construct a fresh runtime cache via the adapter and call Deserialize on the file we
+            // just wrote. If the file is corrupt or format-invalid, vanilla Deserialize throws —
+            // we surface that.
+            var verifyAdapter = _sessionAdapter.CreateDefaultRuntimeCacheAdapter(logger: null);
+            verifyAdapter.DeserializeCache(outputPath);
+            var distanceCount = verifyAdapter.EnumerateExistingDistances().Count();
+            var neighborCount = verifyAdapter.EnumerateExistingNeighbors().Count();
+
+            // Account for vanilla's symmetric storage when comparing against PairsAdded.
+            var expectedNeighborEntries = expectedNeighborPairs * NeighborDictDirectionsPerPair;
+            var distanceMin = (int)(expectedDistanceEntries * VerificationTolerance);
+            var neighborMin = (int)(expectedNeighborEntries * VerificationTolerance);
+            var distanceOk = expectedDistanceEntries == 0 || distanceCount >= distanceMin;
+            var neighborOk = expectedNeighborPairs == 0 || neighborCount >= neighborMin;
+
+            if (distanceOk && neighborOk)
+            {
+                _logger.LogInfo(
+                    $"{tag} round-trip OK: deserialized {distanceCount:N0} distance entries (expected ~{expectedDistanceEntries:N0}) " +
+                    $"and {neighborCount:N0} neighbor entries (expected ~{expectedNeighborEntries:N0} = {expectedNeighborPairs:N0} pairs × 2 directions)");
+                return VerificationResult.Success(distanceCount, neighborCount);
+            }
+
+            var reason =
+                $"distance={distanceCount:N0}/{expectedDistanceEntries:N0} (min {distanceMin:N0}, ok={distanceOk}); " +
+                $"neighbor={neighborCount:N0}/{expectedNeighborEntries:N0} entries (= {expectedNeighborPairs:N0} pairs × 2; min {neighborMin:N0}, ok={neighborOk})";
+            _logger.LogError(
+                $"{tag} POST-WRITE VERIFICATION SHORTFALL: {reason}. " +
+                $"File MAY be truncated — restore the .prev backup: '{outputPath}.prev' → '{outputPath}'.");
+            return VerificationResult.Failure($"output count shortfall — {reason}", distanceCount, neighborCount);
+        }
+        catch (Exception ex)
+        {
+            var msg = $"{ex.GetType().Name}: {ex.Message}";
+            _logger.LogError($"{tag} POST-WRITE VERIFICATION FAILED: {msg}. File MAY be corrupt — keep the .prev backup as fallback.");
+            return VerificationResult.Failure($"deserialize threw — {msg}", -1, -1);
+        }
+    }
+
+    /// <summary>
+    /// Outcome of <see cref="VerifyOutputRoundTrip"/>. Returned so the caller can gate the
+    /// user-visible success popup on actual verification success, not just absence of an exception.
+    /// </summary>
+    internal readonly struct VerificationResult
+    {
+        public bool Ok { get; }
+        public string Reason { get; }
+        public int ActualDistanceCount { get; }
+        public int ActualNeighborCount { get; }
+
+        private VerificationResult(bool ok, string reason, int distance, int neighbor)
+        {
+            Ok = ok;
+            Reason = reason;
+            ActualDistanceCount = distance;
+            ActualNeighborCount = neighbor;
+        }
+
+        public static VerificationResult Success(int distance, int neighbor) =>
+            new VerificationResult(ok: true, reason: string.Empty, distance, neighbor);
+
+        public static VerificationResult Failure(string reason, int distance, int neighbor) =>
+            new VerificationResult(ok: false, reason, distance, neighbor);
+    }
+
+    private static string NewBuildId()
+    {
+        // Short 6-hex tag tying all log lines of one build together. Cheap to grep.
+        var seed = Guid.NewGuid().GetHashCode() & 0xFFFFFF;
+        return seed.ToString("X6");
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 0) return "n/a";
+        if (bytes < 1024) return $"{bytes}B";
+        if (bytes < 1024L * 1024) return $"{bytes / 1024.0:F1}KB";
+        if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1}MB";
+        return $"{bytes / (1024.0 * 1024 * 1024):F2}GB";
+    }
+
+    private static void Notify(string message)
+    {
+        SafeDisplay(message, Colors.Yellow);
+    }
+
+    private static void NotifyOnMainThread(string message)
+    {
+        // InformationManager.DisplayMessage appends to a static queue that the UI thread
+        // drains each frame. In practice this works from any thread. Worst case the message
+        // is silently dropped — the log already captured the full result.
+        SafeDisplay(message, Colors.Yellow);
+    }
+
+    private static void NotifyFailure(string message)
+    {
+        // Red banner for verification / build failures. Distinct color so a user scanning the
+        // information panel can immediately tell success from failure without parsing the text.
+        SafeDisplay(message, Colors.Red);
+    }
+
+    private static void SafeDisplay(string message, Color color)
+    {
+        try
+        {
+            InformationManager.DisplayMessage(new InformationMessage("[DOTS] " + message, color));
+        }
+        catch
+        {
+            // suppress — caller already logged
+        }
+    }
+}

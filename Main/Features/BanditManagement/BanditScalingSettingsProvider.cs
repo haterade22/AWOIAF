@@ -1,0 +1,61 @@
+﻿using DOTS.Features;
+
+namespace DOTS.Features.BanditManagement;
+
+public sealed class BanditScalingSettingsProvider : IBanditScalingSettingsProvider
+{
+    private readonly BanditScalingConfig _defaults;
+
+    public BanditScalingSettingsProvider(IBanditScalingConfigProvider configProvider)
+    {
+        _defaults = configProvider.GetConfig();
+    }
+
+    public bool IsEnabled => DotsSettings.Instance?.EnableBanditScaling ?? true;
+
+    public float DensityCurve =>
+        SafeClamp(DotsSettings.Instance?.BanditDensityCurve, _defaults.DensityCurve, 0f, 5f);
+
+    public float PartySizeCurve =>
+        SafeClamp(DotsSettings.Instance?.BanditPartySizeCurve, _defaults.PartySizeCurve, 0f, 5f);
+
+    public float BossFightCurve =>
+        SafeClamp(DotsSettings.Instance?.BanditBossFightCurve, _defaults.BossFightCurve, 0f, 5f);
+
+    public int MaxHideoutsPerFactionCap =>
+        SafeClampInt(DotsSettings.Instance?.BanditMaxHideoutsPerFaction, _defaults.MaxHideoutsPerFactionCap, 1, 100);
+
+    public int MaxPartiesPerHideoutCap =>
+        SafeClampInt(DotsSettings.Instance?.BanditMaxPartiesPerHideout, _defaults.MaxPartiesPerHideoutCap, 1, 20);
+
+    public int InitialHideoutsPerFaction =>
+        SafeClampInt(DotsSettings.Instance?.BanditInitialHideoutsPerFaction, _defaults.InitialHideoutsPerFaction, 1, 30);
+
+    // No MCM knob for MinPartiesToInfest -- it's a JSON-only advanced tuning value with a strict
+    // upper bound derived from the live MCM cap (not the JSON default), so the invariant
+    // min <= max holds at runtime even if the user lowers BanditMaxPartiesPerHideout in MCM.
+    public int MinPartiesToInfest
+    {
+        get
+        {
+            var cap = MaxPartiesPerHideoutCap;
+            var v = _defaults.MinPartiesToInfest;
+            if (v < 1) v = 1;
+            if (v > cap) v = cap;
+            return v;
+        }
+    }
+
+    private static float SafeClamp(float? value, float defaultValue, float min, float max)
+    {
+        var v = value ?? defaultValue;
+        if (float.IsNaN(v) || float.IsInfinity(v)) return defaultValue;
+        return v < min ? min : v > max ? max : v;
+    }
+
+    private static int SafeClampInt(int? value, int defaultValue, int min, int max)
+    {
+        var v = value ?? defaultValue;
+        return v < min ? min : v > max ? max : v;
+    }
+}

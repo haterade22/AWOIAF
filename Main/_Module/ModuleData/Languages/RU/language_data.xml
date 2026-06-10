@@ -1,0 +1,9 @@
+<LanguageData id="Russian">
+  <LanguageFile xml_path="RU/std_dots_module_strings.xml"/>
+  <LanguageFile xml_path="RU/std_dots_campaign_strings.xml"/>
+  <LanguageFile xml_path="RU/std_dots_xslt_strings.xml"/>
+  <LanguageFile xml_path="RU/std_dots_named_companion_strings.xml"/>
+  <LanguageFile xml_path="RU/std_dots_cc_strings.xml"/>
+  <LanguageFile xml_path="RU/std_dots_career_strings.xml"/>
+  <LanguageFile xml_path="RU/std_dots_messenger_strings.xml"/>
+</LanguageData>

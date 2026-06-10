@@ -1,0 +1,162 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<Version>2.0.0</Version>
+		<Deterministic>true</Deterministic>
+		<PathMap>$(MSBuildProjectDirectory)=/_/</PathMap>
+		<ModuleId>$(MSBuildProjectName)</ModuleId>
+		<ModuleName>$(MSBuildProjectName)</ModuleName>
+		<NoWarn>$(NoWarn);8600;8601;8602;8603;8604;8618;8625</NoWarn>
+		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<!-- Override BuildResources default: deploy Assets, AssetSources, and GUI/SpriteParts to game folder -->
+		<ExcludeSourceFilesFromModule>false</ExcludeSourceFilesFromModule>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- System.Management hosts the WMI API surface used by
+		     Features/CrashReport/Collectors/GpuDisplayCollector for GPU vendor/driver/VRAM
+		     reporting. MUST HintPath to the TaleWorlds-shipped copy (4.0.1.0) — referencing the
+		     .NET 4.7.2 BCL reference assembly resolves to 4.0.0.0 and produces MSB3277 conflict
+		     warnings on every build because every TaleWorlds.* DLL depends on 4.0.1.0 via
+		     System.Management.dll v4.700.19.56404 at <game>\bin\Win64_Shipping_Client\. At
+		     runtime the game has already loaded the 4.0.1.0 copy, so compile-time matching is
+		     required for predictable behavior. -->
+		<Reference Include="$(GameFolder)\bin\$(GameBinariesFolder)\System.Management.dll">
+			<HintPath>%(Identity)</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<!-- System.IO.Compression hosts ZipArchive used by Features/CrashReport/Rendering/CrashBundleWriter
+		     to bundle the crash report + log files + RGL log into a single ZIP for upload. The .NET
+		     4.7.2 BCL reference here is fine — TaleWorlds doesn't ship its own copy and there's
+		     no version skew. -->
+		<Reference Include="System.IO.Compression" />
+		<Reference Include="System.IO.Compression.FileSystem" />
+		<Reference Include="$(GameFolder)\bin\$(GameBinariesFolder)\System.Numerics.Vectors.dll">
+			<HintPath>%(Identity)</HintPath>
+			<Private>False</Private>
+			<Aliases>SNV</Aliases>
+		</Reference>
+		<Reference Include="$(GameFolder)\bin\$(GameBinariesFolder)\TaleWorlds.*.dll" Exclude="$(GameFolder)\bin\$(GameBinariesFolder)\TaleWorlds.Native.dll">
+			<HintPath>%(Identity)</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="$(GameFolder)\Modules\Native\bin\$(GameBinariesFolder)\*.dll">
+			<HintPath>%(Identity)</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="$(GameFolder)\Modules\SandBox\bin\$(GameBinariesFolder)\*.dll">
+			<HintPath>%(Identity)</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="$(GameFolder)\Modules\SandBoxCore\bin\$(GameBinariesFolder)\*.dll">
+			<HintPath>%(Identity)</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="$(GameFolder)\Modules\CustomBattle\bin\$(GameBinariesFolder)\*.dll">
+			<HintPath>%(Identity)</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<!-- UIExtenderEx + HarmonyLib are provided by DOTS.Dependencies.dll (ILRepacked /
+		     source-included into the dependency assembly). See ProjectReference below.
+		     Removed external Bannerlord.UIExtenderEx HintPath in DR1 of dep-internalization
+		     migration (2026-05-22) — DOTS.Dependencies module is the single source. -->
+	</ItemGroup>
+
+	<!-- BehaviorTrees + BehaviorTreeWrapper were rebuilt in-tree on 2026-05-24 and now
+	     live at Main/BehaviorTrees/ + Main/BehaviorTreeWrapper/. Both compile into DOTS.dll.
+	     The standalone BehaviorTrees.dll and BehaviorTreeWrapper.dll vendored binaries
+	     are gone — single-DLL ship surface, full source ownership. RCA:
+	     docs/reviews/rca-looter-battle-nre-2026-05-24.md. -->
+
+	<ItemGroup>
+		<Compile Remove="_Module\bin\**" />
+		<EmbeddedResource Remove="_Module\bin\**" />
+		<None Remove="_Module\bin\**" />
+		<!-- Sibling parallel-ports restored 2026-05-07: SmartCavalryAI, CompanionTactics. -->
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="_Module\ModuleData\project.mbproj" />
+	</ItemGroup>
+
+	<!-- DR1 (2026-05-22): DOTS.Dependencies provides HarmonyLib + Bannerlord.UIExtenderEx
+	     at runtime (source-included in the Dependencies project). Compile-time refs come
+	     via this ProjectReference, NOT via Lib.Harmony / Bannerlord.UIExtenderEx package or
+	     external module HintPath. Private=False keeps Dependencies.dll out of DOTS/bin/ —
+	     it ships separately as DOTS.Dependencies module per SubModule.xml dep. -->
+	<ItemGroup>
+		<ProjectReference Include="..\Dependencies\DOTS.Dependencies.csproj">
+			<Private>False</Private>
+		</ProjectReference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Bannerlord.BuildResources" Version="1.1.0.129">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Bannerlord.MCM" Version="5.11.4" IncludeAssets="compile" />
+		<PackageReference Include="DryIoc.dll" Version="4.8.8" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<!-- DR3 (2026-05-22): Lib.Harmony + Bannerlord.UIExtenderEx PackageReferences are
+		     here so DOTS source compiles against HarmonyLib + Bannerlord.UIExtenderEx types.
+		     IncludeAssets="compile" deploys NO runtime DLL from DOTS/bin/ — at runtime, the
+		     types come from DOTS.Dependencies.dll (which has Lib.Harmony + Bannerlord.UIExtenderEx
+		     ILRepack-merged into it).
+		     DR1's earlier setup (DOTS.Dependencies source-merged Harmony) was replaced after the
+		     decompile-source approach hit unresolvable cascading errors. See
+		     docs/migration/dr3-execution-handoff.md. -->
+		<PackageReference Include="Lib.Harmony" Version="2.4.2" IncludeAssets="compile" />
+		<PackageReference Include="Bannerlord.UIExtenderEx" Version="2.13.1" IncludeAssets="compile" />
+		<PackageReference Include="BUTR.Harmony.Analyzer" Version="1.0.1.50" PrivateAssets="all" />
+		<PackageReference Include="Nullable" Version="1.3.1" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+		<PackageReference Include="IsExternalInit" Version="1.0.3" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+	</ItemGroup>
+
+	<!-- InternalsVisibleTo for unit testing and DOTS_Online multiplayer module -->
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>DOTS.Tests</_Parameter1>
+		</AssemblyAttribute>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>DOTS_Online</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
+	<ItemGroup>
+	  <Content Include="_Module\GUI\.vs\GUI\v17\DocumentLayout.json" />
+	  <Content Include="_Module\GUI\.vs\VSWorkspaceState.json" />
+	</ItemGroup>
+
+	<Target Name="CopyBinariesToModuleFolder" BeforeTargets="PostBuildCopyToModules">
+		<!-- Create directories if they don't exist -->
+		<MakeDir Directories="$(ProjectDir)_Module\bin\Gaming.Desktop.x64_Shipping_Client\" Condition="!Exists('$(ProjectDir)_Module\bin\Gaming.Desktop.x64_Shipping_Client\')" />
+		<MakeDir Directories="$(ProjectDir)_Module\bin\Win64_Shipping_Client\" Condition="!Exists('$(ProjectDir)_Module\bin\Win64_Shipping_Client\')" />
+
+		<!-- Copy to Gaming.Desktop.x64_Shipping_Client -->
+		<Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(ProjectDir)_Module\bin\Gaming.Desktop.x64_Shipping_Client\" />
+		<Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ProjectDir)_Module\bin\Gaming.Desktop.x64_Shipping_Client\" />
+
+		<!-- Copy to Win64_Shipping_Client -->
+		<Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(ProjectDir)_Module\bin\Win64_Shipping_Client\" />
+		<Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ProjectDir)_Module\bin\Win64_Shipping_Client\" />
+	</Target>
+
+	<!-- Mirror the deployed Win64_Shipping_Client folder to Win64_Shipping_wEditor in the game install
+	     so the modding kit (Win64_Shipping_wEditor) loads the same DOTS.dll + companions as the runtime.
+	     Runs AFTER Bannerlord.BuildResources's PostBuildCopyToModules — the source folder must already be
+	     populated by CopyBinariesWindows + CopyModule. Without this mirror, the modding kit launches
+	     stale DLLs and code changes are invisible until manually copied with `cp -v Client/* wEditor/`.
+	     See docs/features/scene-scripts.md "Editor compatibility" section. -->
+	<Target Name="MirrorWin64ShippingClientToEditor"
+	        AfterTargets="PostBuildCopyToModules"
+	        Condition="$(ModuleId) != '' AND Exists($(GameFolder)) AND $(DisableModuleCopy) != 'true' AND Exists('$(GameFolder)\Modules\$(ModuleId)\bin\Win64_Shipping_Client\')">
+		<ItemGroup>
+			<_DotsEditorMirrorFiles Include="$(GameFolder)\Modules\$(ModuleId)\bin\Win64_Shipping_Client\*.*" />
+		</ItemGroup>
+		<MakeDir Directories="$(GameFolder)\Modules\$(ModuleId)\bin\Win64_Shipping_wEditor\" Condition="!Exists('$(GameFolder)\Modules\$(ModuleId)\bin\Win64_Shipping_wEditor\')" />
+		<Copy SourceFiles="@(_DotsEditorMirrorFiles)" DestinationFolder="$(GameFolder)\Modules\$(ModuleId)\bin\Win64_Shipping_wEditor\" SkipUnchangedFiles="true" />
+		<Message Importance="high" Text="DOTS: mirrored @(_DotsEditorMirrorFiles->Count()) files Win64_Shipping_Client -&gt; Win64_Shipping_wEditor in $(GameFolder)\Modules\$(ModuleId)\bin\" />
+	</Target>
+
+</Project>
