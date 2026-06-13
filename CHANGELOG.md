@@ -2,6 +2,23 @@
 
 ## 2026-06-13
 
+### fix: repair the moduledata validator tool-suite (broken since the bootstrap)
+
+The TAOM→DOTS bootstrap rename uppercased the schema/query/MCP module filenames
+(`dots_schema.py`→`DOTS_schema.py`, …) but left every `import dots_schema` lowercase. Python's
+case-sensitive import breaks on Windows' case-insensitive filesystem, so `validate_moduledata.py`,
+`dots_query.py`, `dots_mcp_server.py`, and their tests had been failing collection since 2026-06-10.
+
+- Renamed the 4 misnamed files back to lowercase to match the imports, `.mcp.json`, and CLAUDE.md:
+  `DOTS_schema.py`→`dots_schema.py`, `DOTS_query.py`→`dots_query.py`,
+  `DOTS_mcp_server.py`→`dots_mcp_server.py`, `tests/test_DOTS_query.py`→`test_dots_query.py`
+  (+ `test_DOTS_mcp_server.py`→`test_dots_mcp_server.py`). Zero code changes for the rename.
+- `dots_schema.load_schemas`: read schema JSON with `utf-8-sig` so the UTF-8 BOM on the
+  `tools/schemas/*.json` files no longer trips Python 3.14's stricter `json.load`.
+- Result: all 38 `tools/tests` pass; `validate_moduledata.py` runs. It immediately surfaced 898
+  pre-existing `UNKNOWN_CULTURE` errors — the LOTRLOME-generated `equipmentsets/*.xml` files were not
+  zeroed at bootstrap and still reference dead LOTR cultures (cleanup tracked for the content phases).
+
 ### docs: re-skin presentation layer LOTR → Game of Thrones (Robert's Rebellion)
 
 Re-themed the public-facing documentation from the inherited Lord of the Rings framing to Game of

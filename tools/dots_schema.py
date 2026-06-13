@@ -117,7 +117,7 @@ def load_schemas(schema_dir) -> list:
     for p in sorted(schema_dir.glob("*.json")):
         if p.name.startswith("_"):
             continue
-        with open(p, encoding="utf-8") as f:
+        with open(p, encoding="utf-8-sig") as f:
             schemas.append(Schema.from_json(json.load(f)))
     return schemas
 
