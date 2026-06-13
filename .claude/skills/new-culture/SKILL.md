@@ -8,6 +8,15 @@ argument-hint: [culture-id]
 
 End-to-end authoring of a culture's visible-in-game armor + troops + recruitment. **Read the authoritative guide first:** [docs/ai-includes/new-culture-authoring.md](../../../docs/ai-includes/new-culture-authoring.md). This skill is the entry point + checklist; the guide has the full per-phase detail (modeled on the Dale session, ~11 commits).
 
+> **GoT re-skin (2026-06-13):** DOTS is now Game of Thrones (Robert's Rebellion). Culture model is
+> **region = culture, great house = clan** — use the GoT StringIds in
+> [ADR-011](../../../docs/adrs/011-westeros-culture-model.md) / `.claude/rules/xml-data.md` (e.g. the
+> North's `culture=` value is `sturgia`, not `north`/`stark`). The **armor** half of this flow (Phases
+> 0–1) below still describes the retired LOTRLOME pipeline (`generate_dale_armor.py`, `LOTRLOME_items/`).
+> The new armor source is **A Dance of Dragons Armory** (`ModuleData/ADOD-Assets/` region files); the
+> ADoD armor-wiring pipeline is re-established in the conversion's Phase B. Until then, the **culture
+> definition + troop tree + recruitment** steps (Phases 2–4) are the live, GoT-ready parts.
+
 ## When to invoke
 - Solus delivered a new culture's `.tpac` armor pack to wire in, OR
 - An existing culture needs a fresh troop tree (revamps like #99 / #211 / #212 / #224 / Dale).
@@ -15,7 +24,7 @@ End-to-end authoring of a culture's visible-in-game armor + troops + recruitment
 If creating a **net-new `dots_spcultures.xml` Culture object**, read [docs/cultures.md](../../../docs/cultures.md) FIRST (the ~80 culture attributes + 16 NPC files). This flow picks up after the culture definition exists.
 
 ## Phases
-0. **Prereqs** — confirm the 5 `.tpac` files exist; decide culture ID (custom vs XSLT-passthrough — check `kingdom-culture-mapping.md` memory); decide tier cap; pick 3–4 Tolkien lore citations.
+0. **Prereqs** — decide culture ID (custom vs vanilla-base — check [ADR-011](../../../docs/adrs/011-westeros-culture-model.md) / `.claude/rules/xml-data.md`, NOT a lore name for vanilla-base cultures); decide tier cap; pick 3–4 ASOIAF/Westeros lore citations; identify the culture's ADoD item folder (`North.xml`, `Dorne.xml`, …).
 1. **Armor** — harvest mesh IDs (`tools/tpac_skeleton_scan.py --all-types`) → clone `tools/generate_dale_armor.py` → emit XML → register the `<culture>/` folder in `LOTRLOME_Armory/SubModule.xml`.
 2. **Troops** — lore + tier design on paper → generator → `troops_<culture>.xml` → register in `Main/_Module/SubModule.xml`.
 3. **Wire** — `spcultures.xslt` (every CultureObject template/troop attr), `dots_partyTemplates.xml` (9 templates), `VolunteerRecruitmentService.cs` (culture + optional settlement/clan pools), add tests.

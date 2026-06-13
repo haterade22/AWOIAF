@@ -28,9 +28,9 @@ It is one read-only pass that consolidates the old per-task validators (`validat
 |---|---|
 | `BROKEN_ITEM_REF` (error) | a `Item.X` ref to no defined item — the "underwear bug" (troop spawns naked) |
 | `BROKEN_TROOP_REF` (error) | an `NPCCharacter.X` ref (upgrade_target, party-stack `troop=`, culture `basic_troop=`) to a deleted troop |
-| `UNKNOWN_CULTURE` (error) | a `culture="Culture.X"` that is not a real StringId (e.g. `rohan` instead of `vlandia`, `dale` instead of `sturgia`) |
+| `UNKNOWN_CULTURE` (error) | a `culture="Culture.X"` that is not a real StringId (e.g. `north` instead of `sturgia`, `westerlands` instead of `vlandia` — vanilla-base cultures keep their engine id; see [ADR-011](../../docs/adrs/011-westeros-culture-model.md)) |
 | `DUPLICATE_{NPC,CULTURE,ROSTER}_ID` (error) | the same id defined twice |
-| `DUPLICATE_ITEM_DEF` (warn) | an Armory item id defined in >1 `LOTRLOME_items` folder (engine silently shadows one) |
+| `DUPLICATE_ITEM_DEF` (warn) | an Armory item id defined in >1 Armory folder (engine silently shadows one) |
 | `MISSING_CIVILIAN_TYPE` (warn) | a civilian roster whose `<EquipmentSet>` lacks `equipmentType="Civilian"` (Faramir/Boromir wrong-outfit) |
 | `INVALID_ENUM` (warn) | `default_group` not Infantry/Ranged/Cavalry/HorseArcher |
 | `BROKEN_PARTY_TEMPLATE_REF` (warn) | a `PartyTemplate.X` ref to an undefined template |

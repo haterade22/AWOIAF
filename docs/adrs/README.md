@@ -16,6 +16,7 @@ Quick reference index for DOTS ADRs. See individual files for complete details w
 | [008](./008-testability-requirements.md) | Testability Requirements | Business logic must be 100% unit testable | Accepted | **Mandatory** |
 | [009](./009-self-documenting-code.md) | Self-Documenting Code Standards | No inline comments, ELI5 summaries, code reads like English | Accepted | Standard |
 | [010](./010-knowledge-base-architecture.md) | Knowledge-Base Architecture | `docs/INDEX.md` + linter + backlinks + `raw/research/` layers; keep markdown links over Obsidian wikilinks | Accepted | Standard |
+| [011](./011-westeros-culture-model.md) | Westeros Culture Model | region = culture, great house = clan; 12-culture GoT roster (6 vanilla-base + 6 custom); de-LOTR the theme-bound C# by rename, not redesign | Accepted | **Mandatory** |
 
 ## Quick Rules Reference
 

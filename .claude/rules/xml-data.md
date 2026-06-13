@@ -33,9 +33,11 @@ The same applies to additional Preachers, Headmen, or any new notable beyond the
 Culture XML attributes (`merchant_notary`, `artisan_notary`, etc.) must reference the FIRST NPC of each occupation type.
 
 ## Region Codes
-EN=Rohan, ES=Mordor, EW=Gondor, A=Harad, B=Dunland, V=Vlandia, K=Easterlings, S=Dale/North, DG=Dol Guldur, E=Erebor, G=Gundabad, I=Isengard, L=Lothlorien, M=Mirkwood, R=Rivendell, RU=Rhun, U=Umbar, MM=Misty Mountain Orcs, GT=Goblins (Goblin-town, settlements), LN=Lindon
+Westeros (GoT) region codes, used for `lord_<CODE><clanN>_<lordN>` and settlement-id prefixes. Full culture/kingdom/allegiance table: [ADR-011](../../docs/adrs/011-westeros-culture-model.md).
 
-**Lord/hero id region prefixes** (`lord_<CODE><clanN>_<lordN>`) differ from settlement codes for the new orc kingdoms: Misty Mountain Orcs lords use `MM`, **Goblin lords use `GB`** (settlements use `GT`), Lindon lords use `LN`. Goblin's settlement code (`GT`) and lord code (`GB`) are independent id-spaces.
+`NO`=The North · `VA`=The Vale · `RV`=The Riverlands · `WE`=The Westerlands · `RE`=The Reach · `ST`=The Stormlands · `CR`=The Crownlands · `DO`=Dorne · `IR`=Iron Islands · `NW`=Night's Watch · `FF`=Free Folk (beyond the Wall) · `ES`=Essos (Dothraki / Free Cities)
+
+**Provisional until the map lands:** settlement-id region prefixes are finalized when the user-provided Westeros map module arrives (the settlements + FactionMap-landmarks phase). Lord/hero id prefixes (`lord_<CODE>...`) use the codes above now.
 
 ## Config ID Cross-Reference (MANDATORY)
 
@@ -45,10 +47,10 @@ After writing ANY XML/JSON config containing culture, kingdom, or settlement IDs
 
 | Type | StringIds | Note |
 |------|-----------|------|
-| **Custom cultures** | `gondor`, `mordor`, `erebor`, `rivendell`, `lothlorien`, `mirkwood`, `isengard`, `gundabad`, `dolguldur`, `umbar` | Use LOTR names |
-| **XSLT cultures** | `vlandia` (Rohan), `empire` (Dunland), `aserai` (Harad), `khuzait` (Easterlings), `sturgia` (Dale), `battania` (Khand) | Use vanilla engine IDs |
+| **Custom cultures** | `vale` (Arryn), `riverlands` (Tully), `stormlands` (Baratheon), `crownlands` (Targaryen), `ironborn` (Greyjoy), `nightswatch` | Use the region StringId |
+| **Vanilla-base cultures** | `sturgia` (The North / Stark), `vlandia` (Westerlands / Lannister), `empire` (Reach / Tyrell), `aserai` (Dorne / Martell), `khuzait` (Dothraki / Essos), `battania` (Free Folk) | **Keep the vanilla engine StringId**; the display name is XSLT-renamed |
 
-**Common mistake:** Writing lore names for XSLT cultures. `rohan` is WRONG — use `vlandia`. `dunland` is WRONG — use `empire`. `harad`/`rhun`/`dale`/`khand` are WRONG — use `aserai`/`khuzait`/`sturgia`/`battania`.
+**Common mistake:** Writing the GoT lore/region name for a **vanilla-base** culture. The `culture=` value for the North is `sturgia` (NOT `north`/`stark`); the Westerlands is `vlandia` (NOT `westerlands`/`lannister`); the Reach is `empire`; Dorne is `aserai`; the Dothraki are `khuzait`; the Free Folk are `battania`. Only the 6 CUSTOM cultures (`vale`/`riverlands`/`stormlands`/`crownlands`/`ironborn`/`nightswatch`) use their own name as the StringId. **Great houses are CLANS** (`clan_<region>_N`, e.g. `clan_north_1` = House Stark), not cultures — see [ADR-011](../../docs/adrs/011-westeros-culture-model.md).
 
 ### Checklist
 
@@ -61,7 +63,7 @@ After writing ANY XML/JSON config containing culture, kingdom, or settlement IDs
 
 ### Why this matters
 
-This exact bug pattern has been caught in 5+ Codex reviews. Custom cultures happen to use LOTR names as StringIds, which makes it easy to assume ALL cultures do — but XSLT cultures inherit vanilla engine IDs.
+This exact bug pattern was caught in 5+ Codex reviews during the LOTR era. Custom cultures use their region name as the StringId, which makes it easy to assume ALL cultures do — but vanilla-base cultures (North/Westerlands/Reach/Dorne/Dothraki/Free Folk) keep their vanilla engine IDs (`sturgia`/`vlandia`/`empire`/`aserai`/`khuzait`/`battania`).
 
 ## EquipmentRosters Schema (MANDATORY for `equipmentsets/*.xml`)
 

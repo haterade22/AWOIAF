@@ -1,5 +1,14 @@
 ﻿# New Culture — Armor + Troop Tree Authoring Guide
 
+> **GoT re-skin (2026-06-13):** DOTS is now Game of Thrones (Robert's Rebellion). The culture model is
+> **region = culture, great house = clan** — use the Westeros culture StringIds in
+> [ADR-011](../adrs/011-westeros-culture-model.md) / [`.claude/rules/xml-data.md`](../../.claude/rules/xml-data.md)
+> (vanilla-base cultures keep their engine id: the North is `sturgia`, not `north`/`stark`). The **armor**
+> half of this guide still describes the retired LOTRLOME / Solus-`.tpac` / `generate_dale_armor.py`
+> pipeline; the new item source is **A Dance of Dragons Armory** (`ModuleData/ADOD-Assets/` region files)
+> and its armor-wiring pipeline is re-established in the conversion's Phase B. The **culture definition +
+> troop tree + recruitment** flow remains valid; substitute Westeros lore for the Tolkien examples.
+
 End-to-end repeatable process for adding (or substantially revising) a DOTS culture's **armor set + troop tree + recruitment wiring**, modeled on the Dale session (May 2026, ~11 commits). Use this when:
 
 - Solus delivers a new culture's `.tpac` armor pack and you need to wire it into the engine, OR

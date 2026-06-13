@@ -8,8 +8,13 @@ argument-hint: [lord-name|culture]
 
 Assign lore-driven skill values + personality traits to DOTS lords. **Read the authoritative guide:** [docs/ai-includes/lord-skills-authoring.md](../../../docs/ai-includes/lord-skills-authoring.md) (modeled on the 16-culture / ~880-NPC sweep, #228–#245).
 
+> **GoT re-skin (2026-06-13):** lords are now the great houses of Westeros (House = clan, per
+> [ADR-011](../../../docs/adrs/011-westeros-culture-model.md)). The LOTR lords below were zeroed at
+> bootstrap; the SkillSet mechanism + archetype approach are reusable for GoT house lords (Eddard, Robert,
+> Tywin, Rhaegar, Barristan…), authored in the conversion's lords phase (Phase D).
+
 ## When to invoke
-- A canonical Tolkien lord (Boromir, Galadriel, Théoden…) has wrong in-game stats.
+- A canonical lord (Eddard Stark, Tywin Lannister, Rhaegar Targaryen…) has wrong in-game stats.
 - A new DOTS lord needs skills/traits, or a whole culture roster needs a balance pass.
 
 ## The one critical fact (the recurring bug)

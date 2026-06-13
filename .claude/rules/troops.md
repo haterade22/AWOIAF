@@ -7,13 +7,21 @@ paths:
 
 # Troop Management Rules
 
+> **GoT re-skin (2026-06-13):** DOTS is now Game of Thrones (Robert's Rebellion) and **human-only**.
+> Cultures are Westeros regions, great houses are clans — use the StringIds in
+> [ADR-011](../../docs/adrs/011-westeros-culture-model.md) / `xml-data.md` (vanilla-base cultures keep
+> their engine id: the North is `sturgia`, not `north`). Troop **data** was zeroed at bootstrap; the
+> checklist + party-template + save-compat mechanics below are theme-neutral and valid, but the LOTR
+> examples (Dol Guldur, Gondor, race attributes) are being replaced. Armor now comes from A Dance of
+> Dragons Armory (not LOTRLOME).
+
 ## When Adding or Restructuring Troops
 
 Update ALL of the following (checklist):
 
 | Step | File(s) | What to do |
 |------|---------|------------|
-| 1. Define troops | `Main/_Module/ModuleData/troops/troops_{culture}.xml` | Add NPCCharacter with skills, equipment, upgrade_targets, race, culture |
+| 1. Define troops | `Main/_Module/ModuleData/troops/troops_{culture}.xml` | Add NPCCharacter with skills, equipment, upgrade_targets, culture (no `race` — GoT is human-only) |
 | 2. Party templates | `Main/_Module/ModuleData/dots_partyTemplates.xml` | Add to ALL relevant templates for the culture (hero, patrol L1/L2/L3, outlaw, rebels, mercenary, vassal_reward) |
 | 3. Culture config | `Main/_Module/ModuleData/dots_spcultures.xml` | Update `basic_troop` / `elite_basic_troop` if entry point changed |
 | 4. Recruitment code | `Main/Features/TroopProgression/VolunteerRecruitmentService.cs` | Add/update settlement, clan, and culture fallback pools |
@@ -23,21 +31,17 @@ Update ALL of the following (checklist):
 
 ## Troop ID Naming Convention
 
-`{culture_prefix}_{origin}_{role}` — Examples:
-- `dg_goblin_slave` — Dol Guldur, goblin race, slave role
-- `dg_khamul_shadow_initiate` — Dol Guldur, Khamul's line, shadow initiate
-- `gondor_ano_peasant` — Gondor, Anórien origin, peasant role
+`{region_prefix}_{origin}_{role}` — the troop `id` is a free string (NOT the culture StringId), so use
+the Westeros **region** prefix even for vanilla-base cultures. Examples:
+- `north_winterfell_levy` — The North (culture `sturgia`), Winterfell origin, levy
+- `westerlands_lannister_guardsman` — The Westerlands (culture `vlandia`), Lannister household guard
+- `dorne_sunspear_spear` — Dorne (culture `aserai`), Sunspear origin, spearman
 
-## Race Attributes by Culture
+## Race Attributes (GoT: human-only)
 
-| Culture | Race Lines | Race Attribute |
-|---------|-----------|---------------|
-| Dol Guldur | Goblin | `race="goblin"` |
-| Dol Guldur | Orc | `race="orc"` |
-| Dol Guldur | Uruk | `race="dg_uruk"` |
-| Dol Guldur | Khamul (human) | no `race` attribute |
-| Gondor | Human | no `race` attribute |
-| Gundabad | Goblin/Orc | `race="goblin"` / `race="orc"` |
+DOTS is **human-only** — the LOTR race system was stripped at the bootstrap. Do **not** add a `race`
+attribute to troops; every troop is human (the engine default). The former LOTR per-culture race table
+(Dol Guldur goblins/orcs/uruks, etc.) is obsolete and has been removed.
 
 ## Party Template Types
 

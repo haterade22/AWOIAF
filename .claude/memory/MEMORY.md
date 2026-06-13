@@ -1,5 +1,12 @@
 ﻿# DOTS Project Memory
 
+> **Re-skin in progress (2026-06-13):** DOTS is being re-themed LOTR → **Game of Thrones / Robert's
+> Rebellion**. Gameplay data was zeroed at the 2026-06-10 bootstrap. The GoT culture model is
+> **region = culture, great house = clan** — see [ADR-011](../../docs/adrs/011-westeros-culture-model.md)
+> and `.claude/rules/xml-data.md` for the canonical culture/kingdom/region tables. Older LOTR
+> references below (lord archetypes, settlement IDs, the DOTS_Map cache) are TAOM-era and being
+> superseded as content is authored.
+
 ## User & Preferences
 - [user_profile.md](user_profile.md) — Mike's role, expertise, development style preferences
 
@@ -12,7 +19,7 @@
 
 ## Data Structures
 - [settlements-notes.md](settlements-notes.md) — Settlement XML format and binary distance cache
-- [lords-system.md](lords-system.md) — Lords rebalancing: 2 files, 914 lords, 12 archetypes, 13 cultures
+- [lords-system.md](lords-system.md) — Lords rebalancing: archetypes + balancing approach *(TAOM-era — the 914 LOTR lords were zeroed at bootstrap; the approach is reusable for GoT house lords, Phase D)*
 
 ## Key Learnings
 
@@ -38,11 +45,11 @@
 - See [settlements-notes.md](settlements-notes.md) for full binary format details
 
 ### Notable Templates (Culture NPCs)
-- 10 custom cultures in `dots_spcultures.xml`, 6 XSLT cultures in `spcultures.xslt`
-- Each custom culture has 26 notary NPCs in `characters/npcs_{culture}.xml` matching vanilla distribution: 10 Merchant, 3 Preacher, 2 Artisan, 6 GangLeader, 2 RuralNotable, 3 Headman
-- NPC naming: `spc_notable_{culture}_0` through `_4b` (merchants), `_5/_6/_7` (preachers), `_8/_9` (artisans), `_gl1/_10/_11/_gl4/_12/_13` (gang leaders), `_21/_22` (rural notables), `spc_{culture}_headman_1/_2/_3`
+- GoT target (ADR-011): **6 custom cultures** in `DOTS_spcultures.xml` (`vale`/`riverlands`/`stormlands`/`crownlands`/`ironborn`/`nightswatch`) + **6 vanilla-base cultures** display-renamed in `spcultures.xslt` (`sturgia`=North, `vlandia`=Westerlands, `empire`=Reach, `aserai`=Dorne, `khuzait`=Dothraki, `battania`=Free Folk). *(Both files are currently empty — authoring pending.)*
+- Each custom culture needs 26 notary NPCs in `characters/npcs_{culture}.xml` matching vanilla distribution: 10 Merchant, 3 Preacher, 2 Artisan, 6 GangLeader, 2 RuralNotable, 3 Headman
+- NPC naming (theme-neutral): `spc_notable_{culture}_0` through `_4b` (merchants), `_5/_6/_7` (preachers), `_8/_9` (artisans), `_gl1/_10/_11/_gl4/_12/_13` (gang leaders), `_21/_22` (rural notables), `spc_{culture}_headman_1/_2/_3`
 - Culture attributes (`merchant_notary`, `artisan_notary`, etc.) reference the first NPC of each occupation (e.g., `_0`, `_8`, `_5`, `_21`)
-- XSLT cultures (Dunland, Harad, Rohan, Rhun, Barding, Variag) pass through vanilla notables — have custom notary NPCs in character files but NOT yet wired into XSLT
+- Vanilla-base cultures (North/Westerlands/Reach/Dorne/Dothraki/Free Folk) pass through vanilla notables unless custom notary NPCs are authored and wired into `spcultures.xslt`
 
-### Region Codes
-EN=Empire North (Rohan), ES=Empire South (Mordor), EW=Gondor, A=Aserai (Harad), B=Battania (Dunland), V=Vlandia, K=Khuzait (Easterlings), S=Sturgia (Dale/North), DG=Dol Guldur, E=Erebor, G=Gundabad, I=Isengard, L=Lothlorien, M=Mirkwood, R=Rivendell, RU=Rhun, U=Umbar
+### Region Codes (Westeros — see ADR-011 / xml-data.md)
+NO=The North, VA=The Vale, RV=The Riverlands, WE=The Westerlands, RE=The Reach, ST=The Stormlands, CR=The Crownlands, DO=Dorne, IR=Iron Islands, NW=Night's Watch, FF=Free Folk, ES=Essos (Dothraki/Free Cities). Settlement-id prefixes finalize with the user-provided Westeros map.

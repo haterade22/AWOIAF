@@ -4,6 +4,15 @@ Bannerlord 1.4 total conversion mod (DOTS - Dawn of the Stag)
 
 > **Target: Bannerlord 1.4.5.** DOTS is a total conversion mod set during Robert's Rebellion in the Game of Thrones universe (Westeros). Bootstrapped 2026-06-10 from TAOM architecture (36 features carried forward; HeroRace/RaceAge/Warg/Spider/Elephant/NativeSkinFixes stripped — GoT is human-only for now). GoT content authoring (cultures, troop trees, lords, careers) begins after the bootstrap commit.
 
+> **Re-skin status (2026-06-13):** the engine systems documented below are theme-agnostic and
+> GoT-ready, but the culture / faction / resource / armory / companion **names** still appearing in the
+> reference tables (Key Paths, GameModel Overrides, Harmony Patch Categories, Equipment & Armory,
+> Rebalancing Tools) reflect the retired LOTR data that was **zeroed at the bootstrap** (`troops/`,
+> `characters/`, cultures, kingdoms, strings are all empty). Those tables are mechanism-accurate; the
+> LOTR names are re-populated with Westeros content as it is authored. The GoT faction model is
+> **region = culture, great house = clan** (`north`/`vale`/… cultures; `clan_north_1` = Stark). See
+> `CHANGELOG.md` (2026-06-13) and `docs/roadmap.md`.
+
 ## Commands
 
 | Task | Command |
@@ -330,7 +339,7 @@ When you dispatch a subagent to **implement then review** work, follow the two-s
 | SpecialResources | `Main/Features/SpecialResources/` (11 resources across 18 kingdoms — War Spoils/Gems/Castar/Marks/Elven Wine/Lake Fish/War Drums/Tribal Relics/Dunlending Ale/Plunder/War Banners; XML-driven with many-to-one kingdom/culture mappings, shared balance, pending transaction upgrades, desertion at 0, notifications, Patch26, composite `heroId:resourceId` storage) |
 | CareerSystem | `Main/Features/CareerSystem/` (career/class progression — 50 careers across 16 cultures; XML-driven career defs, mutation calculator registry, passive service with GameModel integration, ability system, career screen UI via UIExtenderEx, level-based tier gating, SyncData persistence, CC career selection stage, archetype-driven starting equipment override at CC finalize — `CareerArchetype` enum + `ICareerArchetypeService` backed by single static map in `CareerSystemIoC` shared with the ability executor registry; `ICareerStartingEquipmentService` applies `player_career_{culture}_{archetype}_{f\|m}` roster on top of culture default via `FillFrom` slot-merge — non-cavalry archetypes need explicit empty Horse/HorseHarness overrides; Gondor authored end-to-end as proof of life, other 15 cultures fall through gracefully to culture default until authored) |
 | SettlementGuards | `Main/Features/SettlementGuards/` (per-settlement guard customization — XML-driven guard troop pools with settlement→clan→culture fallback, spawn-point filtering, weighted random selection, per-culture spear mapping; Harmony prefixes on private GuardsCampaignBehavior methods) |
-| NamedCompanions | `Main/Features/NamedCompanions/` (18 lore companions as recruitable wanderers — Aragorn/Legolas/Gimli/etc; `is_hero="true"` + `occupation="Wanderer"`, JSON config for spawn settlements, vanilla dialog integration, race persistence via existing HeroRace system) |
+| NamedCompanions | `Main/Features/NamedCompanions/` (lore companions as recruitable wanderers — era-canonical lords (Eddard/Jaime/Barristan/Jorah/etc); `is_hero="true"` + `occupation="Wanderer"`, JSON config for spawn settlements, vanilla dialog integration. *(GoT is human-only — the HeroRace persistence the LOTR version used was stripped at bootstrap.)*) |
 | RevoltTuning | `Main/Features/RevoltTuning/` (JSON-tunable soft-nerf of vanilla revolt mechanic for LOTR's frequent settlement flips; raises loyalty thresholds + dampens different-culture penalties; semantic validation rejects out-of-range / sign-flipped values; consumed by `DotsSettlementLoyaltyModel`) |
 | Messengers | `Main/Features/Messengers/` (paid messenger dispatch from encyclopedia + dialog hook; travels for N days, arrival inquiry opens conversation mission with settlement-vs-field routing and player-position restore; random ambush rolls; primitive-dict SyncData; UIExtenderEx prefab extension on `EncyclopediaHeroPage`; ported from LOTRAOM 1.2.12 with 1.3.15 API drift applied; DOTS-owned `MapCoord` keeps service free of TaleWorlds types per ADR-007) |
 | QuickActions | `Main/Features/QuickActions/` (replaces inventory "Sell All" button with a 4-option menu — Sell Damaged / Sell Low Value / Unequip All / vanilla; ported from external `TransferbuttonMenu` 1.2.x with v1.3.15 verification removing 8-probe + 5-probe reflection chains; `IInventoryVMAdapter` consolidates inventory VM surface for future EquipPresets reuse; `Patch34_SellAllItemsMenu` Prefix uses thread-static bypass flag so "Sell All (Vanilla)" re-enters vanilla `TransferAll` unmodified; `TrySellItem` sets `SPItemVM.TransactionCount = StackAmount` before invoke for full-stack sells; `TryUnequipAllPlayerSlots` routes through `InventoryLogic.TransferCommand` so vanilla `AfterTransfer` rebuilds rows; per-save `IsSearchAvailable` toggle via `InventorySearchCampaignBehavior` SyncData + Postfix on `SPInventoryVM.RefreshCallbacks`) |
@@ -427,7 +436,7 @@ When you dispatch a subagent to **implement then review** work, follow the two-s
 | `Patch8_SiegeCampGuard` | Siege camp guard | Various |
 | `Patch10_WeatherBoundsGuard` | Weather bounds clamping | `DefaultMapWeatherModel` |
 | `Patch11_Diplomacy` | Diplomacy system | Various |
-| `Patch12_WarOfTheRing` | War of the Ring | Various |
+| `Patch12_WarOfTheRing` | Robert's Rebellion phased escalation (engine; code symbol id retained) | Various |
 | `Patch14_Execution` | Execution system | Various |
 | `Patch15_BannerLayerLimit` | Banner layer limit | Various |
 | `Patch16_AtmospherePersistence` | Forced-atmosphere scenes | `Mission.Initialize` |
@@ -747,7 +756,7 @@ Opt-in preview (requires v2.1.78+). Runs PowerShell natively instead of routing 
 
 | Item | Details |
 |------|---------|
-| **Armory dependency** | `LOTRLOME_Armory` (NOT `Armory_2` — it will be deleted) |
+| **Armory dependency** | **`A Dance of Dragons Armory`** (Westerosi items organized by region under `ModuleData/ADOD-Assets/` — `North.xml`, `Vale.xml`, `Dorne.xml`, `Ironborn.xml`, `Night's Watch.xml`, `Valyrian.xml`, …). Adopted 2026-06-13; the LOTR `LOTRLOME_Armory` + `Alliance.Wargs` modules are **retired**. A DOTS-owned armory is a later track. |
 | **Item definitions** | `E:\Steam\steamapps\common\Mount & Blade II Bannerlord\Modules\LOTRLOME_Armory\ModuleData\LOTRLOME_items\<folder>\` |
 | **Item files per folder** | `body_armors.xml`, `head_armors.xml`, `leg_armors.xml`, `shoulder_armors.xml`, `arm_armors.xml` |
 | **Global items** | `LOTRLOME_items\LOTRAOM_weapons.xml`, `LOTRAOM_shields.xml`, `LOTRAOM_horses.xml` |
@@ -756,6 +765,12 @@ Opt-in preview (requires v2.1.78+). Runs PowerShell natively instead of routing 
 | **CC facegen action_sets** | LIVE at `E:\Steam\...\LOTRLOME_Armory\ModuleData\action_sets.xml` (DOTS's own copy was removed 2026-05-04). Tracked snapshot at [`docs/reference/lotrlome-armory-snapshot/action_sets.xml`](docs/reference/lotrlome-armory-snapshot/action_sets.xml). Every DOTS-consumed race id MUST have `as_<race>_facegen` + `as_<race>_female_facegen` entries with the full ~106-action surface (copy `as_dwarf_facegen` verbatim, rename `id` + `base_set` only). Slim entries break post-parent CC stages. See [`docs/features/character-creation.md`](docs/features/character-creation.md#lotrlome-as_race_facegen-action_set-requirement-live-in-lotrlome_armory-not-taom) + memory `feedback_lotrlome_action_set_aliases.md`. |
 
 ### Armory folder canonical home per item-id prefix
+
+> **LEGACY (LOTRLOME, retired 2026-06-13):** the `LOTRLOME_items/` layout, `sk_*` prefix scheme, and
+> per-culture folder table below belong to the retired LOTR armory. They are kept only as a reference
+> for the prior conventions. DOTS now draws items from **A Dance of Dragons Armory** (region files
+> under `ModuleData/ADOD-Assets/`); the GoT item-prefix + canonical-folder conventions are TBD and will
+> replace this subsection during armory wiring (Stage 2, Phase B).
 
 **MANDATORY: before authoring a new item, grep ALL `LOTRLOME_items/*/` subfolders for the prefix.** The first folder that already contains items with that prefix is the canonical home. Adding items to a different folder creates runtime duplicate-ID warnings (engine silently shadows one entry). Even when the spec file is named after culture X, the canonical folder may be a sub-culture (e.g., dwarf items live in `iron_hills/`, not `erebor/`).
 

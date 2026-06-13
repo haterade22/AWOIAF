@@ -1,12 +1,18 @@
 ---
 name: author-armor
-description: Author a culture's LOTRLOME armor items and swap troop equipment rosters via the generator + validation pipeline. Use when adding/revamping armor. Enforces the canonical-folder + cover-attribute rules.
+description: Author a culture's armor items and swap troop equipment rosters via the generator + validation pipeline. Use when adding/revamping armor. Enforces the canonical-folder + cover-attribute rules.
 argument-hint: [culture]
 ---
 
 # Armor Item Authoring + Troop Roster Revamp
 
-Author or revamp a culture's `LOTRLOME_Armory` armor items and re-point troop equipment rosters. This is the **armor-only** flow (revamps like #99 / #211 / #212 / #224). For a brand-new culture (armor + troops + recruitment + culture wiring), use `/new-culture` instead.
+Author or revamp a culture's armor items and re-point troop equipment rosters. This is the **armor-only** flow (revamps like #99 / #211 / #212 / #224). For a brand-new culture (armor + troops + recruitment + culture wiring), use `/new-culture` instead.
+
+> **GoT re-skin (2026-06-13):** the LOTRLOME armory is **retired**. DOTS now draws items from **A Dance
+> of Dragons Armory** (`ModuleData/ADOD-Assets/` region files: `North.xml`, `Dorne.xml`, `Ironborn.xml`,
+> …). The `LOTRLOME_items/` folder layout + `sk_*` prefix conventions below are **legacy** pending the
+> ADoD armor-wiring pipeline (conversion Phase B). Use Westeros culture ids from
+> [ADR-011](../../../docs/adrs/011-westeros-culture-model.md) / `.claude/rules/xml-data.md`.
 
 Reference: CLAUDE.md "Equipment & Armory" + "Rebalancing Tools" tables.
 

@@ -1,20 +1,23 @@
 ﻿# DOTS — Dawn of the Stag
 
-A Lord of the Rings total conversion mod for **Mount & Blade II: Bannerlord v1.4.5**.
+A Game of Thrones total-conversion mod for **Mount & Blade II: Bannerlord v1.4.5** — Westeros at the
+outbreak of **Robert's Rebellion (282–283 AC)**.
 
 ## What is it
 
-DOTS reimagines Bannerlord as Middle-earth during the War of the Ring. Sixteen factions wage war
-across a custom map with hundreds of unique troops, race-specific lifespans, autonomous warg AI,
-alignment-driven diplomacy, a full career/class progression system, per-kingdom special resources,
-and dozens of other systems. Every kingdom, clan, lord, and troop has been replaced or rewritten to
-fit Tolkien's world.
+DOTS recasts Bannerlord as Westeros on the eve of Robert's Rebellion. The Seven Kingdoms fracture
+into rebel and loyalist camps as Robert Baratheon, Eddard Stark, Jon Arryn, and Hoster Tully rise
+against the Mad King, Aerys II Targaryen. Play any of the great houses across a custom Westeros map,
+recruit house-specific troop trees, pursue a tiered career, exploit per-region war resources, and
+fight toward the rebellion's set-piece battles — the Bells, the Trident, and the Sack of King's
+Landing. Every kingdom, clan, lord, and troop is being rebuilt for the world of A Song of Ice and Fire.
 
-**By the numbers:** 50 feature modules · 37 GameModel overrides · 30+ Harmony patch categories ·
-50 careers across 16 cultures · 11 special resources across 18 kingdoms · 2,200+ unit tests ·
-74 feature/architecture docs.
+**By the numbers:** 49 feature modules · 35 GameModel overrides · 30+ Harmony patch categories ·
+2,382 unit tests · 85 feature/architecture docs.
 
-> The active development branch (and the GitHub default) is **`bannerlord-1.4.5`**.
+> The mod is built on a mature engine framework bootstrapped from a prior total conversion; the
+> **Game of Thrones content (cultures, troops, lords, careers) is being authored** — see the
+> [CHANGELOG](CHANGELOG.md) and the [roadmap](docs/roadmap.md). The default branch is **`master`**.
 
 ## Quick Start (Developers)
 
@@ -28,7 +31,7 @@ fit Tolkien's world.
 **Build & test**
 
 ```powershell
-git clone https://github.com/haterade22/DOTS      # lands on bannerlord-1.4.5
+git clone https://github.com/haterade22/DOTS      # clones master (default branch)
 cd DOTS
 
 .\setup-dev-env.ps1        # configure BANNERLORD_GAME_DIR + dependencies
@@ -48,14 +51,14 @@ NSubstitute. Shared build settings live in [`Directory.Build.props`](Directory.B
 ```
 DOTS/
 ├── Main/                     # Mod source (.NET Framework 4.7.2)
-│   ├── Features/             # 50 feature modules (CareerSystem, SpecialResources, Warg, …)
+│   ├── Features/             # 49 feature modules (CareerSystem, SpecialResources, CulturalFeats, …)
 │   ├── Core/                 # Core infrastructure + IoC
 │   ├── Adapters/             # Sealed-type adapters (IHeroAdapter, etc.)
 │   └── _Module/              # Bannerlord module files (SubModule.xml, ModuleData, GUI)
-├── DOTS.Tests/               # Unit tests (MSTest + NSubstitute, 2,200+ tests)
+├── DOTS.Tests/               # Unit tests (MSTest + NSubstitute, 2,382 tests)
 ├── docs/
-│   ├── adrs/                 # Architecture Decision Records (11)
-│   ├── features/             # Feature documentation (74 files)
+│   ├── adrs/                 # Architecture Decision Records (10)
+│   ├── features/             # Feature documentation (85 files)
 │   └── migration/            # Bannerlord version-migration tracking
 ├── tools/                    # Rebalancing + localization scripts
 ├── .claude/                  # Claude Code config (skills, agents, rules, hooks, memory)
@@ -90,31 +93,40 @@ See the [Architecture Decision Records](docs/adrs/) for the full set of design c
 
 ### Factions
 
-| Free Peoples | Dark Powers | Neutral |
-|--------------|-------------|---------|
-| Gondor, Rohan, Rivendell, Mirkwood, Lothlorien, Erebor, Dale, Arthedain | Mordor, Isengard, Gundabad, Dol Guldur, Easterlings (Rhun), Harad, Khand | Umbar (corsairs, hostile to all) |
+**The War of the Usurper** splits Westeros into two camps, with the Iron Islands, the Wall, and the
+lands beyond the realm standing apart.
 
-Over 100 clans and 500+ unique troop definitions across all factions.
+| Rebels (Baratheon cause) | Loyalists (Targaryen cause) | Neutral / Unaligned |
+|--------------------------|-----------------------------|---------------------|
+| **House Baratheon** — Stormlands · crowned stag · *Ours is the Fury* | **House Targaryen** — Crownlands · three-headed dragon · *Fire and Blood* | **House Greyjoy** — Iron Islands · golden kraken · *We Do Not Sow* (opportunistic) |
+| **House Stark** — the North · grey direwolf · *Winter is Coming* | **House Tyrell** — the Reach · golden rose · *Growing Strong* | **The Night's Watch** — the Wall · sworn to no crown |
+| **House Arryn** — the Vale · falcon & moon · *As High as Honor* | **House Martell** — Dorne · red sun & spear · *Unbowed, Unbent, Unbroken* | **The Free Folk** — beyond the Wall · the kingless wildlings |
+| **House Tully** — the Riverlands · leaping trout · *Family, Duty, Honor* | | **Essos** — Dothraki khalasars & Free-City sellswords |
+| **House Lannister** — the Westerlands · golden lion · *Hear Me Roar* (joins late, sacks King's Landing) | | |
+
+Roughly twelve to thirteen playable cultures across the Seven Kingdoms, the Wall, and Essos — house
+troop trees, lords, and recruitment are being authored culture by culture.
 
 ### Headline systems
 
-- **Career System** — 50 careers across 16 cultures; pick one at character creation, progress a
-  tiered choice tree, unlock passive bonuses + an active battlefield ability (press **V**).
-- **Special Resources** — 11 per-kingdom resources (War Spoils, Gems, Elven Wine, …) that gate
-  elite troop upgrades; XML-driven with many-to-one kingdom/culture mappings.
-- **Cultural Feats** — 16 lore-driven culture feats (Rohan cavalry speed, Erebor smithing, Mordor
-  raid damage, Gondor loyalty), each backed by a GameModel override.
-- **War of the Ring** — scripted phased escalation into permanent total war between Free Peoples and
-  Dark Powers; configurable via JSON + MCM.
-- **Race & Age System** — race-appropriate lifespans and fertility (immortal elves, 250-year
-  dwarves, fast-breeding orcs, ageless Nazgûl).
-- **Warg Combat** — behavior-tree AI; wargs hunt autonomously and enter rage mode on heavy damage.
-- **Named Companions** — 18 lore companions (Aragorn, Legolas, Gimli, …) as recruitable wanderers.
+- **Career System** — pick a career path at character creation (man-at-arms, outrider, sworn sword,
+  sellsword, …); progress a tiered choice tree, unlock passive bonuses + an active battlefield
+  ability (press **V**).
+- **War Resources** — per-region resources (Valyrian Steel, Dornish Wine, Reach grain, the gold of
+  Casterly Rock, Ironborn plunder, …) that gate elite troop upgrades; XML-driven with many-to-one
+  region/house mappings.
+- **House Feats** — lore-driven culture feats (Northern winter-hardiness, Dornish skirmish speed,
+  Reach prosperity, Westerlands gold income, Ironborn raiding), each backed by a GameModel override.
+- **Robert's Rebellion** — scripted phased escalation from the Mad King's provocations into open war
+  between the rebel houses and the Iron Throne, toward the Trident; configurable via JSON + MCM.
+- **Named Companions** — era-canonical lords as recruitable wanderers (Eddard Stark, Jaime Lannister,
+  Ser Barristan Selmy, Jorah Mormont, Brynden "Blackfish" Tully, …).
 
 …and ~40 more systems (banner color persistence, settlement guards, custom battles, siege defense,
 tournament armor, shader precompilation, and more). Each is documented under
-[`docs/features/`](docs/features/). LOTR rules are enforced through **37 GameModel overrides** and
-**30+ Harmony patch categories** — both registries are catalogued in [CLAUDE.md](CLAUDE.md).
+[`docs/features/`](docs/features/). House and faction rules are enforced through **35 GameModel
+overrides** and **30+ Harmony patch categories** — both registries are catalogued in
+[CLAUDE.md](CLAUDE.md).
 
 ## How It's Built (AI-assisted pipeline)
 
@@ -136,7 +148,8 @@ DOTS is developed with a structured, AI-assisted engineering pipeline.
 
 DOTS ships as a set of modules. Required alongside the core `DOTS` module:
 
-- Companion modules: **DOTS_Map**, **LOTRLOME_Armory**, **DOTS.Dependencies**, **Alliance.Wargs**
+- Companion modules: **A Dance of Dragons Armory** (Westerosi equipment), **DOTS.Dependencies**, and a
+  Westeros map module (provided separately)
 - BUTR dependencies: **Harmony** and **Mod Configuration Menu (MCM)**
 
 Place all modules in your Bannerlord `Modules/` directory, enable them in the launcher, and start a
@@ -154,16 +167,19 @@ Place all modules in your Bannerlord `Modules/` directory, enable them in the la
 
 **Code** (C# mod source): [MIT License](https://opensource.org/licenses/MIT)
 
-**Content** (art, lore, data, XML assets derived from Tolkien's works):
+**Content** (art, lore, data, and XML assets derived from the works of George R. R. Martin):
 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — non-commercial, attribution
 required, share-alike.
 
-This mod is a fan project and is not affiliated with or endorsed by the Tolkien Estate,
-New Line Cinema, or TaleWorlds Entertainment.
+This mod is an unofficial fan project. It is not affiliated with, endorsed by, or sponsored by
+George R. R. Martin, HBO, Warner Bros. Discovery, or TaleWorlds Entertainment. *A Song of Ice and
+Fire* and *Game of Thrones* are trademarks of their respective owners.
 
 ## Acknowledgments
 
 - **[The Old Realms (TOR)](https://www.moddb.com/mods/the-old-realms)** — DOTS's Career System and
-  Special Resources were inspired by TOR's Warhammer total conversion. Their career-progression and
-  resource-gating designs served as the reference architecture, adapted for a Lord of the Rings
+  War Resources were inspired by TOR's Warhammer total conversion. Their career-progression and
+  resource-gating designs served as the reference architecture, adapted for a Game of Thrones
   setting.
+- **TAOM (Tales from the Age of Men)** — DOTS was bootstrapped from the TAOM Bannerlord architecture
+  (IoC/DryIoc, the adapter pattern, the TDD infrastructure, and the carried-forward feature modules).

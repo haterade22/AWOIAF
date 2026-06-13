@@ -2,6 +2,13 @@
 
 **Start here.** This file is the topical map across [docs/](.) — read it instead of grepping when you need to find the canonical doc for any DOTS system. CLAUDE.md describes the working rules and architecture stance; this file maps the persistent knowledge.
 
+> **Re-skin in progress (2026-06-13):** DOTS is being re-themed from LOTR (TAOM) to **Game of Thrones /
+> Robert's Rebellion**. Many feature docs below still carry LOTR lore, and some list features that were
+> **stripped at the bootstrap** (race-age-system, hero-race, offspring-race-inheritance, native-skin-fixes,
+> warg-combat, spider, elephant). The doc links are retained as TAOM history; the per-doc GoT content
+> rewrite is a later track (see `docs/roadmap.md` + `CHANGELOG.md` 2026-06-13). Treat the live code/data
+> as the source of truth where docs and the GoT direction disagree.
+
 ## Quickstart paths
 
 | If you are... | Go to |
@@ -81,7 +88,7 @@
 - [cultural-feats](features/cultural-feats.md) — 16 culture-feat GameModel overrides (Patch18)
 
 ### Faction, kingdom, & diplomacy
-- [diplomacy](features/diplomacy.md) — DotsDiplomacyModel for LOTR faction relationships
+- [diplomacy](features/diplomacy.md) — DotsDiplomacyModel for GoT house/faction relationships
 - [kingdom-creation](features/kingdom-creation.md) — DOTS kingdom + clan + lord authoring
 - [faction-map](features/faction-map.md) — campaign map faction rendering
 - [minor-factions](features/minor-factions.md) — minor factions catalog + rules
@@ -89,12 +96,12 @@
 - [execution](features/execution.md) — DotsExecutionRelationModel + Patch14
 - [banner-injection](features/banner-injection.md) — player banner persistence
 - [banner-color-persistence](features/banner-color-persistence.md) — clan colors everywhere (Patch23 + Patch24)
-- [named-companions](features/named-companions.md) — 18 lore companions as recruitable wanderers
+- [named-companions](features/named-companions.md) — era-canonical lords as recruitable wanderers
 - [war-of-the-ring](features/war-of-the-ring.md) — endgame WotR phase
 - [diplomacy](features/diplomacy.md), [army-targeting](features/army-targeting.md) — see also DotsTargetScoreModel + Patch22 (border proximity floor)
 
 ### Sandbox, lifecycle, & UI
-- [main-menu-customizer](features/main-menu-customizer.md) — hide Campaign, rename Sandbox → "Enter The Age Of Men"
+- [main-menu-customizer](features/main-menu-customizer.md) — hide Campaign, rename Sandbox → "Enter The Age Of Rebellion"
 - [encyclopedia](features/encyclopedia.md) — encyclopedia screen extensions, dispatch entry points
 - [quick-actions](features/quick-actions.md) — inventory "Sell All" multi-action menu (Patch34)
 - [fief-management](features/fief-management.md) — custom GameState for fief management
