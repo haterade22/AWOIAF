@@ -67,6 +67,24 @@ agents stop emitting LOTR culture ids. Still docs/config only — no C# or gamep
   re-skin banners pointing at ADR-011; armor flow retargeted to A Dance of Dragons Armory (LOTRLOME
   pipeline marked legacy pending Phase B); lord/lore examples swapped to Westeros.
 
+### feat: Phase A (start) — vanilla-base culture display-renames + clan_heraldry cleanup
+
+First content increment of the faction skeleton (ADR-011). First gameplay-data change of the conversion.
+
+- **`spcultures.xslt`:** display-rename the 6 vanilla-base cultures to their Westeros names via XSLT —
+  `sturgia`→The North, `vlandia`→The Westerlands, `empire`→The Reach, `aserai`→Dorne, `khuzait`→Dothraki,
+  `battania`→The Free Folk — with short Westerosi `text` descriptions. Only `@name`/`@text` are
+  overridden; every other vanilla attribute/child passes through the identity transform. Verified by
+  applying the transform to the installed vanilla `spcultures.xml` (lxml): all 6 renamed, all 16
+  cultures + critical passthrough attrs (`is_main_culture`/`faction_banner_key`/`basic_troop`) preserved.
+  Runtime StringIds stay vanilla. The `{=dots_culture_*}` keys carry inline defaults (localization is Phase E).
+- **`clan_heraldry/`:** removed the 21 dead LOTR JSONs (they referenced bootstrap-zeroed clans/troops/
+  templates and have no runtime consumer — only the heraldry-generator tooling reads them). Added a
+  README documenting the GoT regeneration plan (keyed on the future Westeros clans).
+
+Not-tested: in-game load (no live game here) — runtime verification deferred. The 6 custom cultures,
+kingdoms, clans, and lords (the bulk of Phase A) remain to be authored.
+
 ## 2026-06-10
 
 ### feat: bootstrap DOTS from TAOM architecture (36 features, GoT blank-slate)
