@@ -2,6 +2,28 @@
 
 ## 2026-06-13
 
+### feat: Phase A — first custom culture (Stormlands / House Baratheon) proof-of-life
+
+Authored the first GoT custom culture in `DOTS_spcultures.xml`, the title house of Robert's Rebellion.
+Approach (ADR-011): clone vanilla `vlandia`'s full, known-valid `<Culture>` structure (72 attributes +
+18 child elements) and change only the identity — `id="stormlands"`, name "The Stormlands", a Baratheon/
+Robert's-Rebellion description, and Baratheon black/gold colours. **Every** troop / NPC / party-template /
+equipment ref still points at vanilla `vlandia` objects, so the culture loads on vanilla content and the
+validator's cross-ref sweep resolves cleanly. Westeros troops, armour (A Dance of Dragons), house names,
+lords, and a Stormlands kingdom/clans layer on in later phases.
+
+- Also fixed a bootstrap bug: `DOTS_spcultures.xml` was reset to root `<Cultures/>`, but it's registered
+  as `<XmlName id="SPCultures">` and vanilla uses `<SPCultures>` — a populated `<Cultures>` root would
+  not have merged. Now `<SPCultures>`.
+- `validate_moduledata.py`: `PASS`, registry now reports **17 cultures** (the 16 vanilla + `stormlands`),
+  no broken refs, no duplicate id.
+- Names display via inline `{=dots_culture_*}default`; registering the `{=dots_culture_*}` keys (these +
+  the 6 vanilla-base renames) into the strings pipeline is Phase E (localization).
+
+Not-tested: in-game campaign load (no live game here). It is a structural clone of a culture that loads,
+with only identity attributes changed and all refs resolving — low load-risk — but **please load-test**
+(pick "The Stormlands" at character creation; confirm it appears with the Baratheon name/colours).
+
 ### chore: zero stale LOTRLOME equipmentsets the bootstrap missed (validator now clean)
 
 With the validator working again, it surfaced 898 `UNKNOWN_CULTURE` errors: the bootstrap zeroed
