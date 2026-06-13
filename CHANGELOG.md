@@ -2,6 +2,18 @@
 
 ## 2026-06-13
 
+### chore: zero stale LOTRLOME equipmentsets the bootstrap missed (validator now clean)
+
+With the validator working again, it surfaced 898 `UNKNOWN_CULTURE` errors: the bootstrap zeroed
+`troops/` and `characters/` but left the LOTRLOME-generated `equipmentsets/` files, which still keyed
+660+ rosters to dead LOTR cultures (gondor/mordor/…). Zeroed the 5 offending files to empty
+`<EquipmentRosters />` stubs (consistent with the bootstrap's treatment of troops/characters; no C#
+hard-references their roster ids): `DOTS_char_creation_equipment`, `DOTS_lord_template_equipment`,
+`DOTS_child_equipment_templates`, `DOTS_wanderer_equipment`, `DOTS_equipment_sets_dolguldur`. These
+are regenerated from A Dance of Dragons Armory in Phase B. `validate_moduledata.py` now reports
+`PASS` — clean baseline for content authoring. (Remaining per-culture `dots_equipment_sets_*.xml` still
+reference LOTRLOME items but don't error while LOTRLOME is installed; cleaned in Phase B.)
+
 ### fix: repair the moduledata validator tool-suite (broken since the bootstrap)
 
 The TAOM→DOTS bootstrap rename uppercased the schema/query/MCP module filenames
