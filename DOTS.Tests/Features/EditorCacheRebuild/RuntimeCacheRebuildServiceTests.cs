@@ -133,17 +133,17 @@ public class RuntimeCacheRebuildServiceTests
     }
 
     [TestMethod]
-    public void ResolveCacheOutputPath_DefaultNavType_BuildsPathUnderDotsMapModuleData()
+    public void ResolveCacheOutputPath_DefaultNavType_BuildsPathUnderAdodMapModuleData()
     {
         _pathService.ModuleRootPath.Returns(@"E:\Games\Bannerlord\Modules\DOTS");
 
         var path = _sut.ResolveCacheOutputPath("Default");
 
-        StringAssert.EndsWith(path, Path.Combine("DOTS_Map", "ModuleData", "DistanceCaches", "settlements_distance_cache_Default.bin"));
-        StringAssert.Contains(path, Path.Combine("Modules", "DOTS_Map"));
-        // The DOTS module root segment must NOT appear in the resolved path — output lives under the sibling DOTS_Map module.
+        StringAssert.EndsWith(path, Path.Combine("A Dance of Dragons - Map", "ModuleData", "DistanceCaches", "settlements_distance_cache_Default.bin"));
+        StringAssert.Contains(path, Path.Combine("Modules", "A Dance of Dragons - Map"));
+        // The DOTS module root segment must NOT appear in the resolved path — output lives under the sibling map module.
         Assert.IsFalse(
-            path.Contains(Path.Combine("Modules", "DOTS", "DOTS_Map")),
+            path.Contains(Path.Combine("Modules", "DOTS", "A Dance of Dragons - Map")),
             $"Path should walk up out of DOTS module, got: {path}");
     }
 

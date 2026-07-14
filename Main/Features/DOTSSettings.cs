@@ -66,8 +66,8 @@ public class DotsSettings : AttributeGlobalSettings<DotsSettings>
 
     [SettingPropertyGroup("War of the Ring")]
     [SettingPropertyBool("Enable War of the Ring", Order = 0,
-        HintText = "When enabled, a scripted war will escalate between Free Peoples and Dark Powers.")]
-    public bool WarOfTheRingEnabled { get; set; } = true;
+        HintText = "Scripted phased war escalation. Disabled by default since the GoT conversion: Robert's Rebellion wars are declared statically in the kingdom data, and this system still carries LOTR-era phase logic pending a GoT redesign. This MCM value wins over war_of_the_ring.json whenever MCM is available.")]
+    public bool WarOfTheRingEnabled { get; set; } = false;
 
     [SettingPropertyGroup("War of the Ring")]
     [SettingPropertyInteger("Phase 1 Start Day", 1, 365, Order = 1,
@@ -520,19 +520,27 @@ public class DotsSettings : AttributeGlobalSettings<DotsSettings>
 
     // --- Map Tools / Distance Cache Rebuild ---
     //
-    // Rebuilds Modules/DOTS_Map/ModuleData/DistanceCaches/settlements_distance_cache_Default.bin
-    // from the live campaign's map scene. The vanilla editor's ComputeAndSave button does the
-    // same thing but takes ~108 hours on DOTS's 863-settlement map. Our parallel + smoke-test +
-    // checkpoint pipeline brings that to ~30 min (full) or ~30s (incremental, 1-5 settlements
-    // moved). Output file replaces the live cache; previous file is preserved as ".prev".
-    // Reload the save (or start a new campaign) after the rebuild completes to pick up the
-    // new distances.
+    // Rebuilds "Modules/A Dance of Dragons - Map/ModuleData/DistanceCaches/
+    // settlements_distance_cache_Default.bin" from the live campaign's map scene (the ADOD
+    // Westeros map: 1,562 settlements / 520 fortifications ≈ 1.22M distance pairs — ~3.3x
+    // the LOTR map's pair count). The vanilla serial compute would take days; our parallel +
+    // smoke-test + checkpoint pipeline is expected in the 25-90 minute range (full) or
+    // seconds-to-minutes (incremental, ≤30 settlements moved). Output replaces the live
+    // cache; previous file is preserved as ".prev". Reload the save (or start a new
+    // campaign) afterwards to pick up the new distances.
+    //
+    // FIRST-TIME BOOTSTRAP is NOT this button: a campaign cannot even load without a valid
+    // cache (the engine would deserialize a Calradia bin against Westeros ids and NRE on the
+    // loading screen). Run `python tools/build_adod_distance_cache.py --apply` BEFORE
+    // launching — it transcodes the map's shipped legacy cache into the modern format
+    // offline. This button is for AFTER map-scene/settlement edits, to regenerate exact
+    // distances + exact path-walk fortification neighbors from a loaded campaign.
 
     [SettingPropertyGroup("Map Tools/Distance Cache Rebuild", GroupOrder = 100)]
     [SettingPropertyButton("Rebuild Settlement Distance Cache",
         RequireRestart = false,
         Content = "Rebuild Now",
-        HintText = "Spawns a 10-30 minute background task that recomputes the settlement distance cache against the live map scene. Requires an active campaign. Game stays playable but pathfinding queries during the rebuild may be inconsistent — best run from main menu after loading a save.")]
+        HintText = "Spawns a background task (roughly 25-90 minutes on the Westeros map) that recomputes the settlement distance cache against the live map scene. Requires an active campaign. Game stays playable but pathfinding queries during the rebuild may be inconsistent — best run right after loading a save, then left alone. First-time setup instead uses tools/build_adod_distance_cache.py before launching the game.")]
     public System.Action RebuildDistanceCacheAction { get; set; } = static () =>
     {
         // MCMv5 invokes this delegate directly with no exception handling around the call site.

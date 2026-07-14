@@ -27,12 +27,16 @@ public class CacheRebuildConfig
     public int SmokeTestPairs { get; set; } = 10;
     public float SmokeTestDistanceTolerance { get; set; } = 1e-4f;
 
-    public string ValidationReportRelativePath { get; set; } = "DOTS_Map/ModuleData/DistanceCaches/last_rebuild_report.json";
+    // All three must live in the SAME directory as the final cache bin (see
+    // RuntimeCacheRebuildService.ResolveCacheOutputPath — incremental mode reads the prior
+    // cache from CheckpointRelativeDirectory). Retargeted DOTS_Map -> the ADOD Westeros map
+    // module 2026-07-14; keep in sync with cache_rebuild_config.json.
+    public string ValidationReportRelativePath { get; set; } = "A Dance of Dragons - Map/ModuleData/DistanceCaches/last_rebuild_report.json";
 
     public bool EnableCheckpoint { get; set; } = true;
-    public string CheckpointRelativeDirectory { get; set; } = "DOTS_Map/ModuleData/DistanceCaches";
+    public string CheckpointRelativeDirectory { get; set; } = "A Dance of Dragons - Map/ModuleData/DistanceCaches";
 
-    public string SettlementSnapshotRelativePath { get; set; } = "DOTS_Map/ModuleData/DistanceCaches/settlements_snapshot.json";
+    public string SettlementSnapshotRelativePath { get; set; } = "A Dance of Dragons - Map/ModuleData/DistanceCaches/settlements_snapshot.json";
 
     // ── Reserved fields (NOT in shipped JSON — wired in future phases) ──────────
 

@@ -6,7 +6,13 @@
 
 Parallel + incremental + resumable settlement distance cache builder, triggered from the in-game MCM menu (Options → Mod Options → DOTS → "Map Tools / Distance Cache Rebuild" → **Rebuild Now**). Runs in-game against the live campaign's `MapSceneWrapper`, writes output atomically with a `.prev` backup, includes round-trip verification.
 
-A full rebuild drops from ~108 hours to ~7 minutes on DOTS's 863-settlement map; incremental rebuilds after small edits target ~30 seconds.
+A full rebuild drops from ~108 hours to ~7 minutes on the LOTR-era 863-settlement map; incremental rebuilds after small edits target ~30 seconds. On the ADOD Westeros map (1,562 settlements, ~1.22M pairs — 3.3× the pair count) expect roughly 25–90 minutes full.
+
+> **ADOD map bootstrap (2026-07-14): read this first.** A campaign on the ADOD Westeros map
+> CANNOT load without a valid modern-format cache, and this feature CANNOT produce one from
+> scratch (it needs a loaded campaign — chicken-and-egg). First-time setup is the OFFLINE tool
+> `python tools/build_adod_distance_cache.py --apply`, run BEFORE launching the game. See
+> "Bootstrap on the ADOD Westeros map" below.
 
 ## Why This Exists
 
@@ -174,6 +180,45 @@ Edit `cache_rebuild_config.json`: `"forceVanilla": true` or `"enabled": false`. 
 | Navmesh edit + rebuild | ~108 hr (no detection) | Full ~7 min (CRC mismatch auto-detected, refuses stale incremental) |
 
 **Why ~30 min and not 5 min:** Phase 2's corridor scan (vanilla `CheckBeingNeighbor`) re-pathfinds every fortification pair. A future optimization would memoize Phase 1's paths for Phase 2 reuse (scaffold is in `Caching/PathReuseCache.cs` + `PersistentPathCache.cs`, not yet wired into the builders). That alone is a 2-3× win on top of the current 6-8× parallelism win.
+
+## Bootstrap on the ADOD Westeros map (2026-07-14)
+
+The map module ("A Dance of Dragons - Map", Id=`ADODMap`) ships its distance cache in the
+**legacy pre-1.4 format at the legacy path** (`ModuleData/settlements_distance_cache.bin`).
+Decompile-verified facts (installed v1.4.7; `NavigationCache<T>` byte-identical to v1.4.5):
+
+- The engine only probes `<Module>/ModuleData/DistanceCaches/settlements_distance_cache_<NavType>.bin`
+  (`SandBox.View.Map.SettlementPositionScript`, shipping `SandBox.View.dll`), scanning **every active
+  module, last match wins**. The legacy file is never read.
+- With no ADOD bin at the modern path, the last match is SandBox's (or NavalDLC's) **Calradia** bin;
+  `Deserialize` NREs on the first unknown settlement id inside a swallowed catch, **no cache is
+  registered**, and `Campaign.CalculateAverageDistanceBetweenTowns` NREs on the loading screen.
+  A campaign cannot load — and this MCM feature needs a loaded campaign. Chicken-and-egg.
+- The legacy bin is internally complete (full 1,562-id half-matrix, 1,219,141 pairs, exact
+  settlements.xml id match) and the shipping reader **ignores the scene-CRC header** — so the data
+  can be transcoded offline.
+
+**`tools/build_adod_distance_cache.py`** (dry-run default, `--apply` writes) transcodes legacy →
+modern `_Default.bin` into the map module: distances verbatim (incl. 1e30 unreachable sentinels),
+faces verbatim, pairs re-grouped to `NavigationCacheElement.Sort` canonical order (ordinal-min outer
+— REQUIRED: `Deserialize` re-Sorts by ref and a non-canonical outer corrupts its loop variable), and a
+**Gabriel-graph approximation** of the fortification-neighbor section (density-matched to vanilla's
+~4.3 avg degree; exact path-walk neighbors come from the first in-game MCM rebuild). Unreachable
+fortifications are omitted from the neighbor section — `FinalizeCacheInitialization` only regenerates
+on *present-but-empty* neighbor lists.
+
+Known map data quality: **10 settlements are off-navmesh** (unreachable from everywhere):
+`castle_NoxixRedwyne_nox1`, 6 hideouts, `retirement_retreat`, `village_A2_2` — flagged by the tool;
+needs an ADOD scene fix or settlement repositioning eventually.
+
+**NavalDLC must be DISABLED in the launcher for DOTS play**: with it active, any non-Sandbox map
+demands `_Naval` + `_All` caches too, the last match is NavalDLC's Calradia bins, and the load
+crashes the same way. DOTS naval cache support is tracked separately (#120).
+
+This feature's output/checkpoint/snapshot paths were retargeted from the defunct `DOTS_Map` to
+`A Dance of Dragons - Map/ModuleData/DistanceCaches/` (`RuntimeCacheRebuildService.ResolveCacheOutputPath`,
+`CacheRebuildConfig` defaults, `configs/cache_rebuild_config.json` — all four must stay in the same
+directory or incremental mode silently falls back to full).
 
 ## GitHub Issue
 

@@ -293,10 +293,15 @@ public class RuntimeCacheRebuildService : IRuntimeCacheRebuildService
 
     internal string ResolveCacheOutputPath(string navTypeName)
     {
-        // _pathService.ModuleRootPath is .../Modules/DOTS. Distance cache lives in sibling
-        // module DOTS_Map. Walk up one level then into DOTS_Map/ModuleData/DistanceCaches.
+        // _pathService.ModuleRootPath is .../Modules/DOTS. The distance cache belongs to the
+        // sibling MAP module ("A Dance of Dragons - Map", Id=ADODMap): the engine's
+        // SettlementPositionScript scans every active module for
+        // ModuleData/DistanceCaches/settlements_distance_cache_<NavType>.bin and the LAST
+        // active module in load order wins — the map module loads after DOTS (and after
+        // SandBox/NavalDLC, whose Calradia bins must lose). Keep in sync with the
+        // CacheRebuildConfig relative-path defaults + tools/build_adod_distance_cache.py.
         var modulesDir = Path.GetFullPath(Path.Combine(_pathService.ModuleRootPath, ".."));
-        return Path.Combine(modulesDir, "DOTS_Map", "ModuleData", "DistanceCaches", $"settlements_distance_cache_{navTypeName}.bin");
+        return Path.Combine(modulesDir, "A Dance of Dragons - Map", "ModuleData", "DistanceCaches", $"settlements_distance_cache_{navTypeName}.bin");
     }
 
     internal virtual void WriteOutputAtomically(INavigationCacheAdapter adapter, string finalPath, string tag)
