@@ -1,16 +1,14 @@
 {
-  "enabled": true,
+  "enabled": false,
+  "_note": "Disabled 2026-07-14 (ADOD map adoption): Robert's Rebellion wars are declared statically via spkingdoms.xslt kingdom relationships (rebels vs Iron Throne/Reach/Dorne). Re-enable with GoT kingdom ids when phased-escalation (e.g. Greyjoy Rebellion phases) is designed. Previous LOTR ids (isengard) are gone.",
   "phase1": {
     "triggerDay": 2,
-    "wars": [
-      { "attacker": "isengard", "defender": "vlandia" },
-      { "attacker": "empire", "defender": "vlandia" }
-    ]
+    "wars": []
   },
   "phase2": {
     "triggerDay": 14,
-    "autoWarBetweenHostileTiers": true,
-    "blockPeaceBetweenHostileTiers": true,
+    "autoWarBetweenHostileTiers": false,
+    "blockPeaceBetweenHostileTiers": false,
     "wars": []
   },
   "testMode": {

@@ -45,7 +45,7 @@
 - See [settlements-notes.md](settlements-notes.md) for full binary format details
 
 ### Notable Templates (Culture NPCs)
-- GoT target (ADR-011): **6 custom cultures** in `DOTS_spcultures.xml` (`vale`/`riverlands`/`stormlands`/`crownlands`/`ironborn`/`nightswatch`) + **6 vanilla-base cultures** display-renamed in `spcultures.xslt` (`sturgia`=North, `vlandia`=Westerlands, `empire`=Reach, `aserai`=Dorne, `khuzait`=Dothraki, `battania`=Free Folk). *(Both files are currently empty — authoring pending.)*
+- GoT target (ADR-011 **as amended 2026-07-14**, map-dictated ids): custom cultures use ADOD-map ids verbatim — `Stormlander` hand-authored in `DOTS_spcultures.xml` + 31 generated clones in `dots_adod_cultures.xml` (`Valeman`/`Ironborn`/`freefolk`/`nightswatch`/`valyrian` + 26 Essos). Vanilla-base display-renames in `spcultures.xslt`: `battania`=**North**, `sturgia`=**Riverlands**, `vlandia`=Westerlands, `khuzait`=**Reach**, `empire`=**Crownlands**, `aserai`=Dorne. Old planned ids `vale`/`riverlands`/`stormlands`/`crownlands`/`ironborn` are dead.
 - Each custom culture needs 26 notary NPCs in `characters/npcs_{culture}.xml` matching vanilla distribution: 10 Merchant, 3 Preacher, 2 Artisan, 6 GangLeader, 2 RuralNotable, 3 Headman
 - NPC naming (theme-neutral): `spc_notable_{culture}_0` through `_4b` (merchants), `_5/_6/_7` (preachers), `_8/_9` (artisans), `_gl1/_10/_11/_gl4/_12/_13` (gang leaders), `_21/_22` (rural notables), `spc_{culture}_headman_1/_2/_3`
 - Culture attributes (`merchant_notary`, `artisan_notary`, etc.) reference the first NPC of each occupation (e.g., `_0`, `_8`, `_5`, `_21`)

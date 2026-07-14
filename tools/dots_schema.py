@@ -445,7 +445,8 @@ def build_registries(moduledata, game_modules, armory_root=None) -> Registries:
     # cc_body_properties.xml, *_resources_config.xml) reuse the <Culture id="...">
     # shape with kingdom ids / placeholders that would pollute the registry and
     # mask invalid culture refs (Codex review 2026-05-30, HIGH).
-    culture_files = [moduledata / "dots_spcultures.xml"]
+    culture_files = [moduledata / "dots_spcultures.xml",
+                     moduledata / "dots_adod_cultures.xml"]
     if game_modules:
         for name in ("SandBoxCore", "SandBox"):
             culture_files.append(game_modules / name / "ModuleData" / "spcultures.xml")

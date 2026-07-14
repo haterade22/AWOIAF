@@ -37,7 +37,7 @@ Westeros (GoT) region codes, used for `lord_<CODE><clanN>_<lordN>` and settlemen
 
 `NO`=The North · `VA`=The Vale · `RV`=The Riverlands · `WE`=The Westerlands · `RE`=The Reach · `ST`=The Stormlands · `CR`=The Crownlands · `DO`=Dorne · `IR`=Iron Islands · `NW`=Night's Watch · `FF`=Free Folk (beyond the Wall) · `ES`=Essos (Dothraki / Free Cities)
 
-**Provisional until the map lands:** settlement-id region prefixes are finalized when the user-provided Westeros map module arrives (the settlements + FactionMap-landmarks phase). Lord/hero id prefixes (`lord_<CODE>...`) use the codes above now.
+**Map landed (2026-07-14, ADR-011 amendment):** settlement ids are fixed by the ADOD map module — the region-prefix scheme for settlements is obsolete. Clan/lord ids referenced by the map are likewise fixed (`clan_battania_1`, `ADODhouse_N`, `ADODClan_Nox*`, …); generated leader lords use `lord_ADOD_<clan-slug>_1` ids (`tools/generate_adod_factions.py`). The `lord_<CODE>...` scheme applies only to future hand-authored lords that the map does not constrain.
 
 ## Config ID Cross-Reference (MANDATORY)
 
@@ -47,10 +47,11 @@ After writing ANY XML/JSON config containing culture, kingdom, or settlement IDs
 
 | Type | StringIds | Note |
 |------|-----------|------|
-| **Custom cultures** | `vale` (Arryn), `riverlands` (Tully), `stormlands` (Baratheon), `crownlands` (Targaryen), `ironborn` (Greyjoy), `nightswatch` | Use the region StringId |
-| **Vanilla-base cultures** | `sturgia` (The North / Stark), `vlandia` (Westerlands / Lannister), `empire` (Reach / Tyrell), `aserai` (Dorne / Martell), `khuzait` (Dothraki / Essos), `battania` (Free Folk) | **Keep the vanilla engine StringId**; the display name is XSLT-renamed |
+| **Vanilla-base cultures** | `battania` (**The North** / Stark), `sturgia` (**The Riverlands** / Tully), `vlandia` (Westerlands / Lannister), `khuzait` (**The Reach** / Tyrell), `empire` (**The Crownlands** / Iron Throne), `aserai` (Dorne / Martell) | **Keep the vanilla engine StringId**; the display name is XSLT-renamed. Mapping is dictated by the ADOD map (Winterfell = battania, Riverrun = sturgia, Highgarden = khuzait, King's Landing = empire). |
+| **Custom Westeros cultures** | `Stormlander` (Baratheon — hand-authored in `dots_spcultures.xml`), `Valeman` (Arryn), `Ironborn` (Greyjoy), `nightswatch`, `freefolk`, `valyrian` (Dragonstone/Velaryon) | **Map ids verbatim — case-sensitive** (capital S/V/I). Generated in `dots_adod_cultures.xml` except `Stormlander`. |
+| **Essos cultures (generated)** | `Dothraki`, `Braavosi`, `Pentoshi`, `Myrish`, `Lyseni`, `Tyroshi`, `Volantene`, `Norvoshi`, `Qohorik`, `Lorathi`, `Ghiscari`, `Qartheen`, `Yi-Tish`, `Lengii`, `Ibbenese`, `Summer Islander`, `Naathi`, `Sothoryi`, `Shrykemen`, `Carcosans`, `N'ghai`, `Hyrkenese`, `Basilisk Corsair`, `Old Valyrian`, `Sarnori`, `Asshai` | Some ids contain **spaces/apostrophes/hyphens** — fine for the engine, but slugify before embedding in other ids/loc-keys, `re.escape()` in regex, and never put them in single-quoted XPath literals. |
 
-**Common mistake:** Writing the GoT lore/region name for a **vanilla-base** culture. The `culture=` value for the North is `sturgia` (NOT `north`/`stark`); the Westerlands is `vlandia` (NOT `westerlands`/`lannister`); the Reach is `empire`; Dorne is `aserai`; the Dothraki are `khuzait`; the Free Folk are `battania`. Only the 6 CUSTOM cultures (`vale`/`riverlands`/`stormlands`/`crownlands`/`ironborn`/`nightswatch`) use their own name as the StringId. **Great houses are CLANS** (`clan_<region>_N`, e.g. `clan_north_1` = House Stark), not cultures — see [ADR-011](../../docs/adrs/011-westeros-culture-model.md).
+**Common mistake:** Writing the GoT lore/region name for a **vanilla-base** culture. The `culture=` value for the North is `battania` (NOT `north`/`stark`); the Riverlands is `sturgia`; the Westerlands is `vlandia`; the Reach is `khuzait`; the Crownlands is `empire`; Dorne is `aserai`. The old planned ids `vale`/`riverlands`/`stormlands`/`crownlands`/`ironborn` are **dead** — never author against them. **Great houses are CLANS** (`clan_battania_1` = House Stark, `ADODhouse_1` = House Targaryen), not cultures — see [ADR-011](../../docs/adrs/011-westeros-culture-model.md) (2026-07-14 amendment).
 
 ### Checklist
 
@@ -63,7 +64,7 @@ After writing ANY XML/JSON config containing culture, kingdom, or settlement IDs
 
 ### Why this matters
 
-This exact bug pattern was caught in 5+ Codex reviews during the LOTR era. Custom cultures use their region name as the StringId, which makes it easy to assume ALL cultures do — but vanilla-base cultures (North/Westerlands/Reach/Dorne/Dothraki/Free Folk) keep their vanilla engine IDs (`sturgia`/`vlandia`/`empire`/`aserai`/`khuzait`/`battania`).
+This exact bug pattern was caught in 5+ Codex reviews during the LOTR era. Custom cultures use a lore name as the StringId, which makes it easy to assume ALL cultures do — but vanilla-base cultures (North/Riverlands/Westerlands/Reach/Crownlands/Dorne) keep their vanilla engine IDs (`battania`/`sturgia`/`vlandia`/`khuzait`/`empire`/`aserai`). The reverse trap also exists now: the custom ids are **case-sensitive map ids** (`Stormlander`, not `stormlander`).
 
 ## EquipmentRosters Schema (MANDATORY for `equipmentsets/*.xml`)
 

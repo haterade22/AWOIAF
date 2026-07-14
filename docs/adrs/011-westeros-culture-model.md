@@ -1,6 +1,7 @@
 # ADR-011: Westeros Culture Model (region = culture, great house = clan)
 
-**Status**: Accepted
+**Status**: Accepted — **amended 2026-07-14** (ADOD map adoption; see the Amendment section: the
+culture/kingdom id tables below are superseded by the map's ids)
 
 **Date**: 2026-06-13
 
@@ -128,6 +129,58 @@ display-renamed in `spcultures.xslt`; custom cultures are authored in `DOTS_spcu
 theme-bound C# renames happen in their respective content phases (feats with careers; recruitment with
 troop trees; diplomacy with the start-state). See the conversion roadmap (the approved plan +
 `docs/roadmap.md`).
+
+## Amendment (2026-07-14) — ADOD map adoption fixes the ids
+
+DOTS adopted the external map module **"A Dance of Dragons - Map"** (`ADODMap`, 1,562 settlements,
+520 fiefs) and, per user decision, **adopts the map's culture/clan StringIds verbatim** (the map
+stays pristine and updatable). This supersedes §2's planned roster where they conflict:
+
+### Vanilla-base culture → region mapping (map-dictated, replaces §2 rows)
+
+| Runtime `culture` StringId | Display (spcultures.xslt) | Evidence |
+|---|---|---|
+| `battania` | **The North** / House Stark | Winterfell is `Culture.battania` |
+| `sturgia` | **The Riverlands** / House Tully | Riverrun is `Culture.sturgia` |
+| `vlandia` | The Westerlands / House Lannister | unchanged |
+| `khuzait` | **The Reach** / House Tyrell | Highgarden is `Culture.khuzait` |
+| `empire` | **The Crownlands** / Iron Throne | King's Landing is `Culture.empire` |
+| `aserai` | Dorne / House Martell | unchanged |
+
+### Custom cultures use the map's ids verbatim (case-sensitive, spaces/apostrophes preserved)
+
+`Stormlander` (hand-authored in `dots_spcultures.xml`, renamed from the planned `stormlands`),
+plus 31 generated clones in `dots_adod_cultures.xml`: `Valeman`, `Ironborn`, `freefolk`,
+`nightswatch`, `valyrian`, `Dothraki`, `Braavosi`, `Pentoshi`, `Myrish`, `Lyseni`, `Tyroshi`,
+`Volantene`, `Norvoshi`, `Qohorik`, `Lorathi`, `Ghiscari`, `Qartheen`, `Yi-Tish`, `Lengii`,
+`Ibbenese`, `Summer Islander`, `Naathi`, `Sothoryi`, `Shrykemen`, `Carcosans`, `N'ghai`,
+`Hyrkenese`, `Basilisk Corsair`, `Old Valyrian`, `Sarnori`, `Asshai`. The planned `vale` /
+`riverlands` / `crownlands` / `ironborn` ids are **dead** — never author against them.
+
+### Kingdoms (37 total)
+
+The 8 vanilla kingdom ids are repurposed to realms via `spkingdoms.xslt` (`empire`=Iron Throne,
+`battania`=The North, `sturgia`=Riverlands, `vlandia`=Westerlands, `khuzait`=Reach, `aserai`=Dorne,
+`empire_w`=Stormlands, `empire_s`=Vale) — the planned `kingdom_<region>` ids are dead. 29 custom
+kingdoms (`ironislands`, `nightswatch`, `freefolk`, `braavos`, … `asshai`) are generated into
+`dots_spkingdoms.xml`. Robert's Rebellion wars (rebels: North/Vale/Riverlands/Stormlands vs
+loyalists: Iron Throne/Reach/Dorne) are declared statically in `spkingdoms.xslt` relationships;
+`diplomacy/war_of_the_ring.json` is disabled pending a GoT phased-escalation redesign.
+
+### Clans (303 map owners)
+
+74 vanilla clans are retargeted (name/culture/kingdom/home) via `spclans.xslt`; 229 clans +
+leader lords + heroes are generated into `characters/{clans,lords,heroes}.xml`. Great-house
+identities (House Stark = `clan_battania_1`, House Targaryen = `ADODhouse_1`, …), era-correct
+rulers (Eddard Stark, Aerys II, …), and name pools live in the hand-authored SPEC.
+
+### Source of truth
+
+`tools/data/westeros_factions_spec.json` (politics SPEC) + `tools/generate_adod_factions.py`
+(generator; regenerates all generated files) + `tools/audit_adod_map_refs.py` (resolution gate).
+§2's settlement region-code prefix scheme is obsolete — settlement ids are fixed by the ADOD map.
+Map-forced anachronisms (Castamere/Tarbeck Hall thriving → Houses Reyne/Tarbeck alive; populated
+Old Valyrian cities → "The Valyrian Remnant") are deliberate alt-history.
 
 ## References
 

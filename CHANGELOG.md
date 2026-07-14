@@ -1,5 +1,140 @@
 # CHANGELOG — DOTS (Dawn of the Stag)
 
+## 2026-07-14
+
+### fix: deep-review findings on the ADOD map adoption + cache transcoder (8-agent review)
+
+`/deep-review` (5 core + tooling-correctness + faction-semantics + adversarial-transcoder agents)
+over the full uncommitted changeset. RCA: `docs/reviews/rca-adod-map-cache-2026-07-14.md`.
+All confirmed findings fixed in-session and every gate re-run green:
+
+- **H1:** 21/229 generated lords were clones of vanilla `main_hero` (all-zero skills) —
+  `parse_lord_templates` now excludes `main_hero` + skill-less shells; regenerated (0 remain).
+- **DF-1:** The Thenns (`clan_sturgia_5`), ruling clan of `Kingdom.freefolk`, derived into
+  Battania via its battania-tagged placeholder fiefs — SPEC culture/kingdom override + a
+  generator assert (every kingdom's ruling clan must land in its own kingdom) +
+  `audit_adod_map_refs.py` now statically recovers spclans.xslt retargets and ruler-checks all
+  37 kingdoms (closes its documented XSLT blind spot). Verified via real `XslCompiledTransform`.
+- **Tooling HIGHs (A.1/A.2/A.2b/B.1):** generator now stages all outputs in memory and writes
+  explicit CRLF bytes only after every validation passes (atomic-per-run, platform-independent);
+  overwrite guard is structural (marker / empty placeholder / identity stub) instead of
+  size-heuristics that silently clobbered small hand-edited files; transcoder now writes
+  temp → validates (incl. sampled bit-exact distance comparison vs legacy) → swaps, so a failed
+  run can never leave the map module without a working cache.
+- **DF-2:** `war_of_the_ring.json` `enabled:false` was outranked by the MCM default —
+  `DotsSettings.WarOfTheRingEnabled` default flipped to `false` (hint documents precedence).
+- **MED/LOW:** SPEC tier hints now emitted as spclans.xslt `@tier` overrides (Thenns tier 5);
+  name-pool exhaustion fails loud; ruler names deduped; `parse_map` Town-count assert;
+  BodyProperties face-age synced to assigned lord age; audit prints load diagnostics.
+- **Tests:** 24 new unit tests across `tools/tests/test_{generate_adod_factions,`
+  `build_adod_distance_cache,audit_adod_map_refs}.py` pin every fix (139 tool tests green).
+  Full C# suite 2,880 passed / 0 failed; `validate_moduledata --warnings-as-errors` PASS.
+- Deferred (recorded in RCA): pre-existing `.Count()` verification-path enumeration
+  (outside changeset); ~25 dangling LOTR equipmentsets SubModule registrations (bootstrap
+  leftover); M2 kingdom-owner precedent deviation documented as deliberate.
+
+### feat: offline distance-cache build for the ADOD map (run BEFORE the game) + rebuild retarget
+
+**Without this, a campaign on the ADOD map hard-crashes on the loading screen.** Decompile-verified
+(installed engine is **v1.4.7**, not the documented 1.4.5; `NavigationCache<T>` identical across
+1.4.5→1.4.7): the engine probes `<Module>/ModuleData/DistanceCaches/settlements_distance_cache_<NavType>.bin`
+across all active modules (LAST match wins, `SandBox.View SettlementPositionScript`); the map's
+shipped cache is legacy-format at the legacy path and is never read; the last match is then a
+**Calradia** bin → unknown-id NRE inside a swallowed catch → no cache registered →
+`CalculateAverageDistanceBetweenTowns` NRE at load. The in-game MCM rebuild needs a loaded
+campaign, so it can't bootstrap (TAOM never solved pre-campaign builds; its editor path was removed).
+
+- **`tools/build_adod_distance_cache.py`** (NEW — the pre-game builder the user asked for; dry-run
+  default, `--apply` writes): transcodes the map's legacy bin (byte-validated: complete 1,562-id
+  half-matrix, 1,219,141 pairs, exact settlements.xml match) into the modern v1.4.7 grammar at
+  `A Dance of Dragons - Map/ModuleData/DistanceCaches/settlements_distance_cache_Default.bin`.
+  Distances + closest-face section verbatim (incl. 1e30 unreachable sentinels); pairs re-grouped to
+  `NavigationCacheElement.Sort` ordinal-canonical order (required — `Deserialize` re-Sorts by ref);
+  fortification neighbors approximated with a Gabriel graph on path distances (~3.5 avg degree vs
+  vanilla ~4.3; the first in-game MCM rebuild replaces with exact path-walk data); zero-CRC header
+  (shipping reader discards it). Output written + independently re-parsed to EOF: **applied,
+  32,964,238 bytes, validation OK**.
+- **Retarget** of the in-game rebuild output from defunct `DOTS_Map` to the ADOD map module:
+  `RuntimeCacheRebuildService.ResolveCacheOutputPath`, `CacheRebuildConfig` defaults (3 paths),
+  `configs/cache_rebuild_config.json`, path test, MCM hint/comment (now states the offline tool is
+  the first-time bootstrap; ~25-90 min estimate for 1,562 settlements).
+- **New-game NRE exposure fixed (faction-layer follow-up):** `InitialChildGeneration` iterates ALL
+  major-faction clans, and the 32 new cultures had no child/teen equipment templates → the exact
+  `HeroCreator.CreateChild` NRE pinned by `ChildGenerationCultures_*` (RCA 2026-06-02).
+  `generate_adod_factions.py` now also emits `equipmentsets/dots_child_equipment_templates.xml` +
+  `dots_lord_template_equipment.xml` (192 rosters each: 6 child + 6 teen vanilla-clone variants ×
+  32 cultures, noble variants carry `IsLordTemplate`). The test's dead LOTR pin (goblin /
+  mistymountainorcs — failing since the bootstrap zeroing, pre-existing) is re-pinned data-driven:
+  every custom culture used by `characters/clans.xml` or the `spclans.xslt` retargets must ship
+  child/teen/lord rosters.
+- **Map data-quality flag:** 10 settlements are off-navmesh/unreachable (`castle_NoxixRedwyne_nox1`,
+  6 hideouts, `retirement_retreat`, `village_A2_2`) — reported by the tool; ADOD scene fix needed
+  eventually.
+- **⚠ NavalDLC must be disabled in the launcher for DOTS play** — active NavalDLC demands
+  `_Naval`/`_All` caches on any non-Sandbox map and crashes on its own Calradia bins (#120).
+
+Verified: transcoder dry-run + `--apply` + independent modern-grammar re-parse OK; all 4 XSLT/paths
+sites green; `dotnet build` 0 errors; **full test suite 2,880 passed / 0 failed** (was 1 pre-existing
+failure); `audit_adod_map_refs.py` OK; `validate_moduledata.py --warnings-as-errors` PASS.
+Not-tested: in-game campaign load (boot test pending — also gates issue #1).
+Research: SettlementPositionScript (shipping SandBox.View.dll), NavigationCache`1
+Serialize/Deserialize/FinalizeCacheInitialization, NavigationCacheElement`1.Sort,
+SandBoxNavigationCache (v1.4.7 via dots-src + ilspycmd). Doc: docs/features/editor-cache-rebuild.md
+"Bootstrap on the ADOD Westeros map".
+
+### feat: adopt the ADOD Westeros map — full culture/kingdom/clan faction layer (Robert's Rebellion)
+
+DOTS now loads the external map module **"A Dance of Dragons - Map"** (`ADODMap`, 1,562 settlements /
+520 fiefs, Westeros + Essos). The map registers only `settlements.xml` (its XSLT deletes vanilla
+settlements — same pattern as TAOM_Map); every `culture=`/`owner=` ref must resolve against DOTS
+definitions. Per user decision the map's ids are adopted **verbatim** (map stays pristine) and the
+**Robert's Rebellion (283 AC) political layout is designed in**, not stubbed:
+
+- **Load order:** `ADODMap/SubModule.xml` (external, edited in place per TAOM_Map precedent) now
+  declares `DependedModule`/`DependedModuleMetadata` on `DOTS` (`LoadBeforeThis`). DOTS SubModule
+  registers the new `dots_adod_cultures` SPCultures node.
+- **Cultures (43 referenced):** 11 vanilla + `Stormlander` (hand culture in `dots_spcultures.xml`,
+  **renamed from `stormlands`** to match the map id) + **31 generated clones** in
+  `dots_adod_cultures.xml` (`Valeman`, `Ironborn`, `freefolk`, `nightswatch`, `Dothraki`, `Braavosi`,
+  `Yi-Tish`, `Old Valyrian`, … incl. ids with spaces/apostrophes — engine-safe, tooling must slugify).
+  `spcultures.xslt` display renames redone to the **map's** region mapping: `battania`=The North,
+  `sturgia`=The Riverlands, `khuzait`=The Reach, `empire`=The Crownlands (Winterfell is battania,
+  Riverrun is sturgia, Highgarden is khuzait, King's Landing is empire on this map).
+- **Clans (303 map owners):** 229 generated (`characters/clans.xml` + one leader lord each in
+  `lords.xml` — vanilla-lord template clones — + `heroes.xml` rows; heroes.xml is mandatory or clan
+  owners crash). 74 vanilla clans retargeted via generated `spclans.xslt` (house name, culture,
+  kingdom, map home). Great houses hand-identified from their seats: House Stark=`clan_battania_1`,
+  Targaryen=`ADODhouse_1`, Lannister/Tully/Arryn/Tyrell/Martell/Baratheon/Greyjoy + ~180 more
+  canon houses; Essos + long tail named from per-culture pools.
+- **Kingdoms (37):** 8 vanilla ids repurposed to realms via generated `spkingdoms.xslt`
+  (`empire`=Iron Throne, `empire_w`=Stormlands, `empire_s`=Vale, …) + 29 generated custom kingdoms
+  (`ironislands`, `nightswatch`, `freefolk`, 9 Free Cities, `dothraki`, `yi_ti`, …) in
+  `dots_spkingdoms.xml`. Era-correct rulers (Aerys II, Eddard Stark, Jon Arryn, Hoster Tully,
+  Robert Baratheon, Tywin, Mace, Doran, Quellon Greyjoy, LC Qorgyle) via generated `lords.xslt`
+  renames + generated lords. **Rebellion wars set statically** in `spkingdoms.xslt` relationships
+  (rebels North/Vale/Riverlands/Stormlands vs loyalists Iron Throne/Reach/Dorne; 12 war pairs);
+  `diplomacy/war_of_the_ring.json` disabled (stale LOTR ids) pending GoT phased-escalation redesign.
+- **Toolchain:** `tools/generate_adod_factions.py` (parses map + vanilla + SPEC, emits all generated
+  files, dry-run default, marker-guarded overwrites) + hand-authored politics SPEC
+  `tools/data/westeros_factions_spec.json` + `tools/audit_adod_map_refs.py` (resolution gate:
+  map cultures/owners, hero/lord/clan/kingdom consistency). Validator wired: `dots_adod_cultures.xml`
+  added to `dots_schema.py` culture_files + `DOTS_spcultures.json` applies_to.
+- **Docs:** ADR-011 amended (map-dictated ids supersede the planned `vale`/`riverlands`/…);
+  `.claude/rules/xml-data.md` culture tables rewritten.
+
+Verified: `audit_adod_map_refs.py` OK (229 clans / 29 kingdoms / 229 heroes+lords consistent);
+`validate_moduledata.py --warnings-as-errors` PASS (48 cultures, no broken refs); all 4 XSLTs
+transform-tested under .NET `XslCompiledTransform` against installed vanilla (House Stark rename,
+Greyjoy→ironislands, Iron Throne rename, 24 war entries, Eddard Stark, Crownlands/Riverlands all
+land); `dotnet build Main` 0 errors.
+
+Not-tested: in-game campaign load (needs live game). **Please boot-test:** enable DOTS + ADODMap
+(+ A Dance of Dragons Armory), new sandbox campaign → map renders, first day ticks, Encyclopedia
+lists the kingdoms/houses, save+load once. Known follow-ups: culture `start_point_position` values
+still vanilla-map coords (CC start placement); `mountain_bandits` (vanilla bandit clan) owns the 10
+Vale mountain-clan castles as shipped by the map — watch for oddities; heraldry banner_keys,
+localization pass, and lords fleshing (spouses/heirs/skills) are later phases.
+
 ## 2026-06-13
 
 ### feat: Phase A — first custom culture (Stormlands / House Baratheon) proof-of-life

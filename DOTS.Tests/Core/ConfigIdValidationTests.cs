@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
@@ -61,13 +62,15 @@ public class ConfigIdValidationTests
         return cultures;
     }
 
-    // --- Child-generation equipment templates (RCA 2026-06-02) ---
+    // --- Child-generation equipment templates (RCA 2026-06-02; re-pinned 2026-07-14) ---
     // A custom culture whose clans get lords triggers InitialChildGeneration -> HeroCreator.CreateChild
     // -> EquipmentSelectionModel.GetEquipmentForInitialChildrenGeneration. That model searches for a
     // culture-matching equipment roster flagged IsChildEquipmentTemplate (young) or
     // IsTeenagerEquipmentTemplate (teen), both also IsLordTemplate; if NONE exists it returns null and
-    // vanilla NREs on new-game in EquipmentHelper.AssignHeroEquipmentFromEquipment. goblin +
-    // mistymountainorcs shipped without these rosters and crashed every new game.
+    // vanilla NREs on new-game in EquipmentHelper.AssignHeroEquipmentFromEquipment. Originally pinned
+    // to the LOTR-era goblin + mistymountainorcs regression; now data-driven over the GoT faction
+    // layer: every custom culture that any clan uses (characters/clans.xml + the spclans.xslt
+    // vanilla-clan retargets) must ship child/teen/lord rosters, or new games crash.
     [TestMethod]
     public void ChildGenerationCultures_HaveChildTeenAndLordEquipmentTemplates()
     {
@@ -81,10 +84,38 @@ public class ConfigIdValidationTests
         var teenCultures = CulturesWithFlaggedRoster(lordFile, "IsTeenagerEquipmentTemplate");
         var lordCultures = CulturesWithFlaggedRoster(lordFile, "IsLordTemplate");
 
-        // The new orc cultures were the regression — pin them so a future clone can't drop them again.
-        foreach (var c in new[] { "goblin", "mistymountainorcs" })
+        // Vanilla cultures are covered by vanilla's own sandbox_equipment_sets.xml rosters.
+        var vanillaCovered = new HashSet<string>(StringComparer.Ordinal)
+            { "empire", "sturgia", "aserai", "vlandia", "battania", "khuzait" };
+
+        var requiredCultures = new SortedSet<string>(StringComparer.Ordinal);
+        var clansFile = Path.Combine(md, "characters", "clans.xml");
+        if (File.Exists(clansFile))
+            foreach (var clan in XDocument.Load(clansFile).Descendants("Faction"))
+            {
+                var c = clan.Attribute("culture")?.Value?.Replace("Culture.", "");
+                if (!string.IsNullOrEmpty(c) && !vanillaCovered.Contains(c))
+                    requiredCultures.Add(c);
+            }
+        // spclans.xslt retargets vanilla clans onto custom cultures (e.g. Greyjoy -> Ironborn).
+        var spclansXslt = Path.Combine(md, "spclans.xslt");
+        if (File.Exists(spclansXslt))
+        {
+            XNamespace xsl = "http://www.w3.org/1999/XSL/Transform";
+            foreach (var attr in XDocument.Load(spclansXslt).Descendants(xsl + "attribute"))
+                if (attr.Attribute("name")?.Value == "culture")
+                {
+                    var c = attr.Value.Replace("Culture.", "");
+                    if (!string.IsNullOrEmpty(c) && !vanillaCovered.Contains(c))
+                        requiredCultures.Add(c);
+                }
+        }
+
+        Assert.AreNotEqual(0, requiredCultures.Count,
+            "No custom clan cultures found — clans.xml/spclans.xslt missing? The guard would be vacuous.");
+        foreach (var c in requiredCultures)
             Assert.IsTrue(childCultures.Contains(c),
-                $"Culture '{c}' has no IsChildEquipmentTemplate roster in dots_child_equipment_templates.xml — " +
+                $"Culture '{c}' has clans/lords but no IsChildEquipmentTemplate roster in dots_child_equipment_templates.xml — " +
                 "InitialChildGeneration NREs in HeroCreator.CreateChild for this culture's lords.");
 
         // Consistency: every culture with child templates must also have teenager + adult lord
