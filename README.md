@@ -1,11 +1,19 @@
-﻿# DOTS — Dawn of the Stag
+﻿# AWOIAF — A World of Ice and Fire
 
-A Game of Thrones total-conversion mod for **Mount & Blade II: Bannerlord v1.4.5** — Westeros at the
+A Game of Thrones total-conversion mod for **Mount & Blade II: Bannerlord** — Westeros at the
 outbreak of **Robert's Rebellion (282–283 AC)**.
+
+> **Formerly DOTS — Dawn of the Stag.** The repository was renamed to `AWOIAF` on 2026-09-16 to match the
+> campaign-map module (`AWOIAF_Map`). The code, module Id, DLL and namespaces are still `DOTS` until the
+> identity rename in [#3](https://github.com/haterade22/AWOIAF/issues/3) lands — wherever this README says
+> `DOTS`, it means the current build artefacts, not a different project.
+
+**Engine target:** the code pins **v1.4.5**; the 1.5.3 migration (3 compile errors) is in progress. The map
+module already loads in the **v1.5.3** Scene Editor. Latest tag: [`v0.1.0`](https://github.com/haterade22/AWOIAF/releases/tag/v0.1.0).
 
 ## What is it
 
-DOTS recasts Bannerlord as Westeros on the eve of Robert's Rebellion. The Seven Kingdoms fracture
+AWOIAF recasts Bannerlord as Westeros on the eve of Robert's Rebellion. The Seven Kingdoms fracture
 into rebel and loyalist camps as Robert Baratheon, Eddard Stark, Jon Arryn, and Hoster Tully rise
 against the Mad King, Aerys II Targaryen. Play any of the great houses across a custom Westeros map,
 recruit house-specific troop trees, pursue a tiered career, exploit per-region war resources, and
@@ -23,7 +31,7 @@ Landing. Every kingdom, clan, lord, and troop is being rebuilt for the world of 
 
 **Prerequisites**
 
-- Mount & Blade II: Bannerlord **v1.4.5** installed
+- Mount & Blade II: Bannerlord installed (code targets **v1.4.5**; **v1.5.3** migration in progress)
 - Visual Studio 2022 (or the .NET SDK + MSBuild) — targets .NET Framework 4.7.2
 - `BANNERLORD_GAME_DIR` environment variable pointing at your game install
   (the `setup-dev-env.ps1` script configures this)
@@ -31,8 +39,8 @@ Landing. Every kingdom, clan, lord, and troop is being rebuilt for the world of 
 **Build & test**
 
 ```powershell
-git clone https://github.com/haterade22/DOTS      # clones master (default branch)
-cd DOTS
+git clone https://github.com/haterade22/AWOIAF    # clones master (default branch)
+cd AWOIAF
 
 .\setup-dev-env.ps1        # configure BANNERLORD_GAME_DIR + dependencies
 .\build.ps1                # build the mod
@@ -46,10 +54,20 @@ Bannerlord launcher and start a **new campaign** (existing saves are not support
 `DOTS.sln` at the root contains both `Main` (mod code) and `DOTS.Tests`. Tests run with MSTest +
 NSubstitute. Shared build settings live in [`Directory.Build.props`](Directory.Build.props).
 
+## The campaign map — `AWOIAF_Map`
+
+The Westeros + Essos campaign map is a separate, external Bannerlord module, **`AWOIAF_Map`**
+("A World of Ice and Fire - Map"), seeded from the *A Dance of Dragons* map: 1,562 settlements, its own
+materials, map-icon meshes and distance cache. It is ~9 GB and is **not in this repository** —
+`tools/awoiaf_map/create_module.py` rebuilds it from the ADOD source folder, and the rest of
+`tools/awoiaf_map/` (schema migration, `.tpac` material/mesh porting, asset-source retargeting) keeps it
+loadable without any ADOD module. Status, evidence and the deferred work (in-game load, Westeros trim) are in
+[`docs/features/awoiaf-map.md`](docs/features/awoiaf-map.md).
+
 ## Project Structure
 
 ```
-DOTS/
+AWOIAF/                       # repo (folder may still be named DOTS locally)
 ├── Main/                     # Mod source (.NET Framework 4.7.2)
 │   ├── Features/             # 49 feature modules (CareerSystem, SpecialResources, CulturalFeats, …)
 │   ├── Core/                 # Core infrastructure + IoC
@@ -60,7 +78,7 @@ DOTS/
 │   ├── adrs/                 # Architecture Decision Records (10)
 │   ├── features/             # Feature documentation (85 files)
 │   └── migration/            # Bannerlord version-migration tracking
-├── tools/                    # Rebalancing + localization scripts
+├── tools/                    # Rebalancing + localization scripts; awoiaf_map/ = map-module tooling
 ├── .claude/                  # Claude Code config (skills, agents, rules, hooks, memory)
 ├── .codex/                   # Codex adversarial-reviewer config
 ├── CLAUDE.md                 # AI instruction file (authoritative project reference)
@@ -130,7 +148,7 @@ overrides** and **30+ Harmony patch categories** — both registries are catalog
 
 ## How It's Built (AI-assisted pipeline)
 
-DOTS is developed with a structured, AI-assisted engineering pipeline.
+AWOIAF is developed with a structured, AI-assisted engineering pipeline.
 
 - **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** is integrated as more than a
   code generator: 33 custom slash-command skills, 5 specialized agents, 18 automated hooks,
@@ -146,10 +164,10 @@ DOTS is developed with a structured, AI-assisted engineering pipeline.
 
 ## Installing to Play (non-developers)
 
-DOTS ships as a set of modules. Required alongside the core `DOTS` module:
+AWOIAF ships as a set of modules. Required alongside the core `DOTS` module (name pending #3):
 
-- Companion modules: **A Dance of Dragons Armory** (Westerosi equipment), **DOTS.Dependencies**, and a
-  Westeros map module (provided separately)
+- Companion modules: **AWOIAF_Map** (the campaign map, provided separately), **A Dance of Dragons
+  Armory** (Westerosi equipment) and **DOTS.Dependencies**
 - BUTR dependencies: **Harmony** and **Mod Configuration Menu (MCM)**
 
 Place all modules in your Bannerlord `Modules/` directory, enable them in the launcher, and start a
@@ -177,9 +195,11 @@ Fire* and *Game of Thrones* are trademarks of their respective owners.
 
 ## Acknowledgments
 
-- **[The Old Realms (TOR)](https://www.moddb.com/mods/the-old-realms)** — DOTS's Career System and
+- **[A Dance of Dragons](https://www.nexusmods.com/mountandblade2bannerlord/mods/6116)** — the campaign map
+  and the Westerosi armory AWOIAF builds on.
+- **[The Old Realms (TOR)](https://www.moddb.com/mods/the-old-realms)** — the Career System and
   War Resources were inspired by TOR's Warhammer total conversion. Their career-progression and
   resource-gating designs served as the reference architecture, adapted for a Game of Thrones
   setting.
-- **TAOM (Tales from the Age of Men)** — DOTS was bootstrapped from the TAOM Bannerlord architecture
+- **TAOM (Tales from the Age of Men)** — the mod was bootstrapped from the TAOM Bannerlord architecture
   (IoC/DryIoc, the adapter pattern, the TDD infrastructure, and the carried-forward feature modules).

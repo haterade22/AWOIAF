@@ -94,6 +94,12 @@
 - **Committed with the build gate bypassed (user's call):** `check-build-before-commit.sh` blocks every commit
   while DOTS has the 3 known 1.5.3 compile errors; nothing in this commit is C#. The gate is back in force
   once the 1.5.3 migration lands. Tagged `v0.1.0`.
+- **Repo renamed `haterade22/DOTS` → `haterade22/AWOIAF`** (old URL redirects); tag `v0.1.0` + GitHub release;
+  README retitled *AWOIAF — A World of Ice and Fire* with a map-module section; the code-level identity rename
+  is scoped in issue #3 (not started — module Id/DLL/namespaces stay `DOTS` for now).
+- `Dependencies/_Module/bin/Win64_Shipping_Client/`: the 28 vendored BUTR runtime DLLs (ButterLib/MCM 1.4.x
+  shims, BUTR.CrashReport, Serilog, Microsoft.Extensions.*, System.*) are now tracked — the 2026-07-14
+  allow-list existed but the files were never added.
 - Scene carries **two** `settlement_scripts` entities with `SettlementPositionScript` (inherited from ADOD;
   vanilla has one) — every scene save logs two `opening settlements.xml` rewrites. Harmless so far; trim later.
 - **Module folder renamed `AWOIAF Map` → `AWOIAF_Map`** (editor: "Space in scene path! Need to have underscore
