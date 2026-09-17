@@ -94,6 +94,10 @@
 - **Committed with the build gate bypassed (user's call):** `check-build-before-commit.sh` blocks every commit
   while DOTS has the 3 known 1.5.3 compile errors; nothing in this commit is C#. The gate is back in force
   once the 1.5.3 migration lands. Tagged `v0.1.0`.
+- **Setting changed: Robert's Rebellion (282–283 AC) → War of the Five Kings (298–300 AC)** (user's call,
+  2026-09-16). README rewritten for the new era (five claimants table, set-piece battles, companions); the
+  faction layer, Patch12 escalation phases, named companions, CLAUDE.md and the ADOD faction generator still
+  encode the Rebellion — scoped in issue #4.
 - **Repo renamed `haterade22/DOTS` → `haterade22/AWOIAF`** (old URL redirects); tag `v0.1.0` + GitHub release;
   README retitled *AWOIAF — A World of Ice and Fire* with a map-module section; the code-level identity rename
   is scoped in issue #3 (not started — module Id/DLL/namespaces stay `DOTS` for now).

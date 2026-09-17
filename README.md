@@ -1,7 +1,12 @@
 ﻿# AWOIAF — A World of Ice and Fire
 
 A Game of Thrones total-conversion mod for **Mount & Blade II: Bannerlord** — Westeros at the
-outbreak of **Robert's Rebellion (282–283 AC)**.
+outbreak of the **War of the Five Kings (298–300 AC)**.
+
+> **Setting change (2026-09-16):** the mod moves from Robert's Rebellion (282–283 AC) to the War of the
+> Five Kings. The README describes the new setting; the faction data, the Rebellion escalation feature and
+> the era-canonical companions still reflect the old one until [#4](https://github.com/haterade22/AWOIAF/issues/4)
+> lands.
 
 > **Formerly DOTS — Dawn of the Stag.** The repository was renamed to `AWOIAF` on 2026-09-16 to match the
 > campaign-map module (`AWOIAF_Map`). The code, module Id, DLL and namespaces are still `DOTS` until the
@@ -13,12 +18,15 @@ module already loads in the **v1.5.3** Scene Editor. Latest tag: [`v0.1.0`](http
 
 ## What is it
 
-AWOIAF recasts Bannerlord as Westeros on the eve of Robert's Rebellion. The Seven Kingdoms fracture
-into rebel and loyalist camps as Robert Baratheon, Eddard Stark, Jon Arryn, and Hoster Tully rise
-against the Mad King, Aerys II Targaryen. Play any of the great houses across a custom Westeros map,
-recruit house-specific troop trees, pursue a tiered career, exploit per-region war resources, and
-fight toward the rebellion's set-piece battles — the Bells, the Trident, and the Sack of King's
-Landing. Every kingdom, clan, lord, and troop is being rebuilt for the world of A Song of Ice and Fire.
+AWOIAF recasts Bannerlord as Westeros in the year King Robert dies. Five crowns are claimed at once:
+the boy-king **Joffrey** on the Iron Throne with Lannister steel behind him, his uncles **Stannis** on
+Dragonstone and **Renly** with the Stormlands and the Reach, **Robb Stark** proclaimed King in the North
+at Riverrun, and **Balon Greyjoy** crowning himself again on Pyke. Dorne and the Vale hold back, the
+wildlings gather beyond the Wall, and across the Narrow Sea the last Targaryen has dragons. Play any of
+the great houses across a custom Westeros + Essos map, recruit house-specific troop trees, pursue a
+tiered career, exploit per-region war resources, and fight toward the war's set-piece battles — the
+Whispering Wood, the Green Fork, the Blackwater. Every kingdom, clan, lord, and troop is being rebuilt
+for the world of A Song of Ice and Fire.
 
 **By the numbers:** 49 feature modules · 35 GameModel overrides · 30+ Harmony patch categories ·
 2,382 unit tests · 85 feature/architecture docs.
@@ -111,16 +119,16 @@ See the [Architecture Decision Records](docs/adrs/) for the full set of design c
 
 ### Factions
 
-**The War of the Usurper** splits Westeros into two camps, with the Iron Islands, the Wall, and the
-lands beyond the realm standing apart.
+**The War of the Five Kings** splits Westeros between five claimants, with Dorne, the Vale, the Wall
+and the lands beyond the realm standing apart.
 
-| Rebels (Baratheon cause) | Loyalists (Targaryen cause) | Neutral / Unaligned |
-|--------------------------|-----------------------------|---------------------|
-| **House Baratheon** — Stormlands · crowned stag · *Ours is the Fury* | **House Targaryen** — Crownlands · three-headed dragon · *Fire and Blood* | **House Greyjoy** — Iron Islands · golden kraken · *We Do Not Sow* (opportunistic) |
-| **House Stark** — the North · grey direwolf · *Winter is Coming* | **House Tyrell** — the Reach · golden rose · *Growing Strong* | **The Night's Watch** — the Wall · sworn to no crown |
-| **House Arryn** — the Vale · falcon & moon · *As High as Honor* | **House Martell** — Dorne · red sun & spear · *Unbowed, Unbent, Unbroken* | **The Free Folk** — beyond the Wall · the kingless wildlings |
-| **House Tully** — the Riverlands · leaping trout · *Family, Duty, Honor* | | **Essos** — Dothraki khalasars & Free-City sellswords |
-| **House Lannister** — the Westerlands · golden lion · *Hear Me Roar* (joins late, sacks King's Landing) | | |
+| The Five Kings | Neutral / Unaligned |
+|----------------|---------------------|
+| **Joffrey Baratheon** — the Iron Throne · Crownlands + **House Lannister** (Westerlands · golden lion · *Hear Me Roar*) | **House Martell** — Dorne · red sun & spear · *Unbowed, Unbent, Unbroken* |
+| **Stannis Baratheon** — Dragonstone · crowned stag in a burning heart · *Ours is the Fury* | **House Arryn** — the Vale · falcon & moon · *As High as Honor* (under Lysa, the Vale stays home) |
+| **Renly Baratheon** — Stormlands + **House Tyrell** (the Reach · golden rose · *Growing Strong*) | **The Night's Watch** — the Wall · sworn to no crown |
+| **Robb Stark**, King in the North — the North (*Winter is Coming*) + **House Tully** (Riverlands · *Family, Duty, Honor*) | **The Free Folk** — beyond the Wall · Mance Rayder's host |
+| **Balon Greyjoy**, King of the Iron Islands — golden kraken · *We Do Not Sow* | **Essos** — Daenerys Targaryen, Dothraki khalasars & Free-City sellswords |
 
 Roughly twelve to thirteen playable cultures across the Seven Kingdoms, the Wall, and Essos — house
 troop trees, lords, and recruitment are being authored culture by culture.
@@ -135,10 +143,11 @@ troop trees, lords, and recruitment are being authored culture by culture.
   region/house mappings.
 - **House Feats** — lore-driven culture feats (Northern winter-hardiness, Dornish skirmish speed,
   Reach prosperity, Westerlands gold income, Ironborn raiding), each backed by a GameModel override.
-- **Robert's Rebellion** — scripted phased escalation from the Mad King's provocations into open war
-  between the rebel houses and the Iron Throne, toward the Trident; configurable via JSON + MCM.
-- **Named Companions** — era-canonical lords as recruitable wanderers (Eddard Stark, Jaime Lannister,
-  Ser Barristan Selmy, Jorah Mormont, Brynden "Blackfish" Tully, …).
+- **The Five Kings' War** — scripted phased escalation from Robert's death and Ned Stark's arrest into
+  open war between the claimants, toward the Blackwater; configurable via JSON + MCM. *(Engine carried
+  over from the Rebellion version; the phases are being re-authored for this war — #4.)*
+- **Named Companions** — era-canonical figures as recruitable wanderers (Brienne of Tarth, Bronn,
+  Thoros of Myr, Ser Barristan Selmy, Jorah Mormont, …). *(Roster being re-authored for 298 AC — #4.)*
 
 …and ~40 more systems (banner color persistence, settlement guards, custom battles, siege defense,
 tournament armor, shader precompilation, and more). Each is documented under
