@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit that every faction reference in the ADOD map's settlements.xml resolves against
+"""Audit that every faction reference in the AWOIAF_Map (ADOD-derived) settlements.xml resolves against
 DOTS + vanilla definitions, and that the generated faction layer is internally consistent.
 
 Checks (read-only; exit 1 on any failure):
@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MD = ROOT / "Main" / "_Module" / "ModuleData"
 GAME = Path(os.environ.get("BANNERLORD_GAME_DIR",
                            r"E:\Steam\steamapps\common\Mount & Blade II Bannerlord"))
-MAP_XML = GAME / "Modules" / "A Dance of Dragons - Map" / "ModuleData" / "settlements.xml"
+MAP_XML = GAME / "Modules" / "AWOIAF_Map" / "ModuleData" / "settlements.xml"  # Id AWOIAF_Map, seeded from ADOD
 SB = GAME / "Modules" / "SandBox" / "ModuleData"
 SBC = GAME / "Modules" / "SandBoxCore" / "ModuleData"
 

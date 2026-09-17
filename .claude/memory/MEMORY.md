@@ -18,6 +18,7 @@
 - [reference_bannerlord_docs.md](reference_bannerlord_docs.md) — Modding docs, decompilation tools, vanilla data sources
 
 ## Data Structures
+- **Campaign map (2026-09-15):** the external `<game>/Modules/AWOIAF_Map/` (Id `AWOIAF_Map`), seeded from the ADOD map by `tools/awoiaf_map/*` — see [docs/features/awoiaf-map.md](../../docs/features/awoiaf-map.md). The `DOTS_Map` settlements/cache notes below are TAOM-era and retired.
 - [settlements-notes.md](settlements-notes.md) — Settlement XML format and binary distance cache
 - [lords-system.md](lords-system.md) — Lords rebalancing: archetypes + balancing approach *(TAOM-era — the 914 LOTR lords were zeroed at bootstrap; the approach is reusable for GoT house lords, Phase D)*
 

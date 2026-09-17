@@ -17,9 +17,9 @@ This is a data-reference bug, not an engine bug. **Check the references before s
 
 | Tool | What it does |
 |---|---|
-| [`tools/audit_scene_names.py`](../../tools/audit_scene_names.py) | Extracts every settlement `scene_name` (live `DOTS_Map`, vanilla `SandBox`/`NavalDLC`, repo shadow), cross-references vs all `Modules/*/SceneObj/` folders (case-insensitive), classifies missing-everywhere vs WIP-in-`SceneEditData`, and diffs DOTS vs vanilla. |
+| [`tools/audit_scene_names.py`](../../tools/audit_scene_names.py) | Extracts every settlement `scene_name`/`scene_name_N` from the map module (`--module`, default `AWOIAF_Map`) and vanilla `SandBox`, cross-references vs the `SceneObj/` folders of the **enabled** modules only (`--enabled`, case-insensitive), diffs map vs vanilla. Exit 1 on crash suspects — a gate. |
 | [`tools/audit_battle_scenes.py`](../../tools/audit_battle_scenes.py) | Compares DOTS's `sp_battle_scenes.xml` Scene ids vs vanilla + on-disk SceneObj; flags ids with no folder; checks 0–255 `map_indices` coverage (an uncovered index = no battle scene). |
-| [`tools/remap_stale_scene_names.py`](../../tools/remap_stale_scene_names.py) | Verified `scene_name` remap (every replacement confirmed present on disk before writing); backs up the external file. Edit its `REMAP` dict for new renames. |
+| [`tools/remap_stale_scene_names.py`](../../tools/remap_stale_scene_names.py) | Verified `scene_name` remap (every replacement confirmed present in an enabled module before writing; `scene_name_1..3` included; byte-faithful atomic write; `--backup` optional). Edit its `REMAP` dict for new renames. |
 
 ```bash
 python tools/audit_scene_names.py        # settlement scene refs -> full report
@@ -30,8 +30,8 @@ python tools/remap_stale_scene_names.py --dry-run   # preview fixes; --apply --b
 ## Key gotchas
 
 - **Case-insensitive.** Windows resolves `HART_ISENGARD` vs `HART_isengard`. An exact-case audit false-flags these; the tools lower-case both sides.
-- **Live vs shadow.** The loaded map is `<game>/Modules/DOTS_Map/ModuleData/settlements.xml` (external). The repo's `Main/_Module/ModuleData/settlements.xml` is a stale, unregistered shadow — fixing it is cosmetic. See [`dots-map-settlement-naming.md`](dots-map-settlement-naming.md).
-- **Custom-scene typo vs vanilla fallback.** If a missing scene has a near-match in `DOTS_Map/SceneObj` (a real custom scene referenced with a typo, e.g. `lotraom_e_osgiliath` vs on-disk `lotrdots_e_osgiliath`), repoint to the real custom scene. Only fall back to a vanilla scene of the matching settlement type when no custom scene exists.
+- **The map is external.** The loaded map is `<game>/Modules/AWOIAF_Map/ModuleData/settlements.xml` (Id `AWOIAF_Map`, seeded from the ADOD map — see [`../features/awoiaf-map.md`](../features/awoiaf-map.md)). The repo ships no settlements.xml; `DOTS_Map` and its repo shadow are retired.
+- **Custom-scene typo vs vanilla fallback.** If a missing scene has a near-match in `AWOIAF_Map/SceneObj` (a real custom scene referenced with a typo, e.g. `corspe_lake` vs on-disk `adod_corpse_lake`), repoint to the real custom scene. Only fall back to a vanilla scene of the matching settlement type when no custom scene exists — and prefer porting the scene into the module (`tools/awoiaf_map/port_adod_scenes.py`) over a lossy remap.
 - **Packed scenes.** Scenes can in principle be packed (`.tpac`) rather than `SceneObj/` folders; the folder check could false-negative. In practice DOTS/vanilla scenes are folders.
 - **No duplicate Scene ids in `sp_battle_scenes.xml`.** Vanilla never reuses a `<Scene id>`. When repointing a broken battle terrain, use a real id NOT already in DOTS's file (don't duplicate an existing one).
 

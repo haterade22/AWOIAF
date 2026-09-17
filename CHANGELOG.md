@@ -1,6 +1,145 @@
 # CHANGELOG — DOTS (Dawn of the Stag)
 
+## 2026-09-15
+
+### feat: AWOIAF_Map — the campaign-map module, seeded from the ADOD map (editor-load milestone)
+
+- **The map module never existed on disk.** `DOTS_Map` in CLAUDE.md was the bootstrap rename of TAOM's
+  LOTR map; the 2026-07-14 ADOD adoption generated the faction layer against `A Dance of Dragons - Map`
+  but that module was never copied into `Modules\` (not in the Recycle Bin either — the bin held only
+  today's LOTR/TAOM cleanup). The DOTS-prepared copy was intact at `E:\LOTRAOMAssets\A Dance of Dragons - Map`.
+- **New module `<game>/Modules/AWOIAF_Map/`** (Id `AWOIAF_Map`, "A World of Ice and Fire - Map", v1.0.0)
+  built by `tools/awoiaf_map/create_module.py`: robocopy minus `RuntimeDataCache`/nested duplicate/`*.prev`
+  (1,257 files, ~8.7 GB), rendered `SubModule.xml`, `project.mbproj` retargeted. Manifest snapshot at
+  `docs/reference/awoiaf-map-snapshot/`. **Decompile evidence (v1.5.3 `ModuleInfo`/`ModuleHelper`):** vanilla
+  parses only `DependedModules/DependedModule` (`Optional=` honoured, ordering by presence) and never
+  `DependedModuleMetadatas`; `ModuleType` is read, `<Official>` is not — so DOTS is declared
+  `<DependedModule Id="DOTS" Optional="true"/>` and the module validates in the editor with DOTS absent.
+- **`settlements.xml` migrated to v1.5.3** (`tools/awoiaf_map/migrate_settlements_schema.py`): the ADOD
+  1.2.12 `<Hideout scene_name=…>` is dead on 1.5.3 (`Hideout.Deserialize` reads only meshes;
+  `HideoutCampaignBehavior:666` and the map tooltip dereference `Settlement.LocationComplex` → NRE on all
+  222 hideouts) → each hideout gains a `hideout_complex` Locations block; six hero-city menu meshes with no
+  installed tpac (`menuWinterfell`, `menuKingsLanding`, …) remapped to vanilla placeholders. Every other
+  ADOD attribute is still read by the 1.5.3 deserializers (audited: 0 missing required attrs across
+  520/819/222). Byte-faithful (BOM+CRLF), idempotent, post-checked, atomic.
+- **Every settlement scene now resolves inside the module** (`tools/awoiaf_map/port_adod_scenes.py` +
+  `remap_stale_scene_names.py`): 58 scene names had no folder in an enabled module (774 settlements;
+  `WesterosiGenericKeep` alone 561 castles) → the 115 ADOD mission scenes with their AssetPackages/Prefabs/
+  NavMeshPrefabs/Atmospheres ported additively (flora_kinds merged 9+8), two ADOD typos remapped
+  (`reach_westerlands_villagee`, `corspe_lake`→`adod_corpse_lake`). `audit_scene_names.py` → 0 crash suspects.
+- **Scene tools re-pointed**: `audit_scene_names.py` (`--module`/`--enabled`, enabled-modules-only lookup,
+  exit-1 gate) and `remap_stale_scene_names.py` (`--module`, `scene_name_1..3`, LOTR-era REMAP retired);
+  `build_adod_distance_cache.py` / `audit_adod_map_refs.py` / `generate_adod_factions.py` target
+  `Modules/AWOIAF_Map`. Gates green: faction audit (229 clans / 29 kingdoms), transcoder dry-run
+  (1,562 ids, bit-exact), `validate_moduledata.py` PASS.
+- **Editor `RGL WARNING: Unable to locate source file $BASE/Modules/A Dance of Dragons/AssetSources/...`**
+  (`tools/awoiaf_map/retarget_tpac_sources.py`): editor-form `*_tex.tpac` files hold only metadata + an
+  Int32-length-prefixed source path naming the module the asset was originally compiled in (499 x
+  `A Dance of Dragons`, 1 x `ADOD_IAF Map`); the compiled pixels were in the 1.2.12 RuntimeDataCache, so
+  the 1.5.3 editor recompiles from PNG. Fixed by an equal-length in-place rewrite
+  (`A Dance of Dragons/` -> `AWOIAF_Map/././././`; `$BASE/` is a raw string substitution) - 500 tpacs,
+  sizes unchanged, every rewritten path verified to resolve before writing. Lesson recorded: `AssetSources`
+  is load-bearing for editor-form modules.
+- **Editor crashed on every folder creation while mirroring the 59 nested ADOD `AssetSources/MapAssets`
+  folders** (2026-09-16, `tools/awoiaf_map/flatten_map_asset_sources.py`): consolidated to exactly `icons/`
+  (39 fbx) + `textures/` (491 png/dds, all lowercase). 25 byte-identical duplicates collapsed, 35 Google-Drive
+  `desktop.ini` deleted, 2 archives moved up to `AssetSources/`, the two genuinely different `TheReach.fbx` /
+  `TheWesterlands.fbx` exports both kept (`_alt`). The editor had already replaced the 2026-09-15 `Assets/`
+  tpacs with its own re-import, so no tpac source paths needed rewriting for this.
+- **Materials recreated** (2026-09-16, `tools/awoiaf_map/generate_materials.py` + `tpac.py`): the editor
+  re-import gave every texture a new GUID and materials reference textures by GUID, so ADOD's 115
+  `*_mtl.tpac` were rewritten (texture GUID → name → our lowercased texture → our GUID; fresh package/asset
+  GUIDs; checknum recomputed) with name/shader/blend/flags/floats byte-identical. `.tpac` findings, verified
+  on real files: TpacTool's layout holds; the per-asset checknum TpacTool writes as 0 is
+  **xxHash64(seed 0) over u64 metadataSize + metadata**; `dataOffset` = index size after the 36-byte
+  header; material metadata unchanged between 1.2.12 and 1.5.3. 22 slot refs resolve to vanilla Native
+  textures and were kept. 114 written, 1 hand-made kept, 0 re-check failures.
+- **Meshes ported with ADOD's material assignments** (`tools/awoiaf_map/port_geo_meshes.py`): the fbx
+  material-slot names are mostly raw DCC names (166 of 228), so re-import can never auto-bind — the hand
+  assignments live in the 33 compiled `*_geo.tpac`. Ported with material GUIDs rebound by name (237 refs),
+  checknums recomputed, segment offsets shifted, data verbatim; Geometry fbx checksum (xxHash64 of the file)
+  kept satisfied by pointing 10 records at the compiled export copied in as `<stem>_alt.fbx`.
+- **Editor crash (10:26) root-caused and fixed**: 140 orphaned ADOD-scene prefabs/nav-mesh prefabs/atmospheres
+  left behind after `AssetPackages/` was emptied → `original_meta_mesh_pointers_for_prefabs_[im] != nullptr`
+  assert at startup, native crash on opening the resource browser. Removed (byte-identical to source).
+- **Editor crash #2 (12:38) = same as #1 (10:26) once the prefabs were gone**: last line `compile_shader:
+  water_simulation.rs, main_cs`; the only material on that shader is ADOD's `river`, referenced by nothing.
+  Deleted from the module (`SKIP_MATERIALS` keeps it out). Vanilla name collisions un-collided: `grass`→`adod_grass`,
+  stray `cube` metamesh→`adod_cube` (`tools/awoiaf_map/rename_tpac_assets.py`, GUIDs kept).
+- **Main_map loads in the v1.5.3 editor.** Terrain layers were blank: 23 `<terrain>` texture refs in
+  ADOD's mixed case vs our lowercase textures (case-sensitive lookup) → `tools/awoiaf_map/fix_terrain_texture_case.py`.
+- Tests: +76 (`test_create_awoiaf_map_module` 14, `test_migrate_settlements_schema` 12,
+  `test_port_adod_scenes` 8, `test_scene_name_tools` 5, `test_retarget_tpac_sources` 8,
+  `test_flatten_map_asset_sources` 6, `test_tpac` 6, `test_generate_materials` 5, `test_port_geo_meshes` 5,
+  `test_rename_tpac_assets` 4, `test_fix_terrain_texture_case` 3); tools suite 215 green.
+- Feature doc: `docs/features/awoiaf-map.md` (evidence table, residue, deferred list).
+- **Scene damage at 13:00 → full restore (2026-09-16).** An editor save left `scene.xscene` with 749 entities
+  renamed/removed and `navmesh.bin` 8× smaller (cause not reproduced by a plain save). `SceneObj/Main_map` +
+  `SceneEditData/Main_map/terrain_ed.bin` restored from the pristine ADOD copy, terrain-case fix re-applied;
+  damaged files parked in `SceneObj/_damaged_13-00/`. A later accidental save (13:18) verified clean, and the
+  editor's per-save rewrite of `settlements.xml` is byte-identical to the migrated file (1,562 settlements,
+  222 hideout blocks, BOM+CRLF) — the editor now co-owns that file: edit it only with the editor closed.
+- **Editor "Compute settlement cache" works on this map: ~2 h 22 min for 1,562 settlements** (run 1
+  14:06→16:28, run 2 16:35→19:12, 2026-09-16): face→closest-settlement 23 min (133,142 navmesh faces),
+  settlement-to-settlement 36 min, fortification neighbours 83 min (520), then `Serialize` →
+  `DistanceCaches/settlements_distance_cache_Default.bin` (32,982,574 bytes, CRCs match the current scene).
+  The 13:32 crash blamed on it was **not** the compute: Windows event log shows `0xe0434352` (unhandled .NET
+  exception, not a native AV), the log never reached the compute's first `Found distance cache at:` line, and
+  the sibling `SavePositions` / `CheckPositions` handlers in the same `OnEditorVariableChanged` run bare in a
+  native→managed callback (only the compute is try/catch'd). Type unknown — no dump retained (`LocalDumps`
+  not set for `TaleWorlds.MountAndBlade.Launcher.exe`). Also verified: the cache format is byte-identical
+  1.4.8→1.5.3 (`NavigationCache`/`SandBoxNavigationCache`), `Deserialize` reads the two scene CRCs and never
+  compares them, and on game load the *last* active module with a `DistanceCaches/*_Default.bin` wins.
+- `Main/Properties/launchSettings.json`: launch profiles now list `AWOIAF_Map` (was `ADODMap`).
+- **Committed with the build gate bypassed (user's call):** `check-build-before-commit.sh` blocks every commit
+  while DOTS has the 3 known 1.5.3 compile errors; nothing in this commit is C#. The gate is back in force
+  once the 1.5.3 migration lands. Tagged `v0.1.0`.
+- Scene carries **two** `settlement_scripts` entities with `SettlementPositionScript` (inherited from ADOD;
+  vanilla has one) — every scene save logs two `opening settlements.xml` rewrites. Harmless so far; trim later.
+- **Module folder renamed `AWOIAF Map` → `AWOIAF_Map`** (editor: "Space in scene path! Need to have underscore
+  instead!"). Same byte length, so `retarget_tpac_sources.py` re-pointed all 528 `$BASE/Modules/…` source paths
+  in place (padding unchanged), `project.mbproj` `XMLDirectory` updated, tool defaults/tests/docs/memory
+  follow (98 replacements). Id and display name unchanged.
+- `tools/awoiaf_map/restore_texture_flags.py` (dry-run default): re-adds texture flags the re-import dropped
+  (`for_terrain`/`dont_degrade`/`for_skybox_sun`) using ADOD's tex tpacs as reference. The user set the flag on
+  the 23 terrain-layer textures in the editor; the tool still reports 104 `for_terrain` + 2 others on textures
+  no terrain layer currently uses — left alone. No tests yet.
+
+**Scope decisions (user):** editor-load only this pass; **no trimming** (full 1,562-settlement map);
+DOTS C# untouched. **Engine drift recorded:** the install is **v1.5.3** (DOTS pins `v1.4.5.*`);
+DOTS has 3 compile errors against it (`DefaultExecutionRelationModel`/`TraitLevelingHelper.OnLordExecuted`
+deleted, `GovernorDifferentCultureLoyaltyEffect` signature) — TAOM's `8b9f0a23` is the recipe. Deferred with
+the C# retarget of `RuntimeCacheRebuildService`/`CacheRebuildConfig`/`cache_rebuild_config.json`/
+`launchSettings.json` (still say "A Dance of Dragons - Map"/`ADODMap`), `/verify-bindings`, the Westeros
+trim, and the CLAUDE.md `DOTS_Map` rows. NavalDLC must stay disabled.
+
+Not-tested: the editor open of `Main_map` itself (user-side); in-game load is out of scope this pass.
+
 ## 2026-07-14
+
+### fix: vendor the BUTR runtime DLLs the bootstrap dropped + VS launch profiles for the ADOD set
+
+- **DOTS.Dependencies was un-launchable** ("Cannot find ... Bannerlord.ButterLib.dll" on boot):
+  the DR3 architecture vendors the Workshop-only BUTR runtime DLLs in
+  `Dependencies/_Module/bin/Win64_Shipping_Client/` (ButterLib + Implementation.1.4.0/1.4.1,
+  MBOptionScreen.v1.4.0/1.4.1, ModuleLoader, MCM.UI.Adapter.MCMv5, BUTR.CrashReport family,
+  Serilog + Microsoft.Extensions support set — see `docs/migration/dr3-maintenance.md` Category 2).
+  The TAOM bootstrap carried the `.gitignore` ALLOWLIST for these files but not the binaries, so
+  the deployed module shipped only `DOTS.Dependencies.dll` while its SubModule.xml declared the
+  full stack. Mirrored TAOM's curated set (28 DLLs, both binaries folders; identical
+  brand-normalized SubModule.xml verified); build now deploys 34 files. Same set is
+  proven-in-use on the same v1.4.7 install by TAOM.
+- **VS 2026 F5 launch**: `Main/Properties/launchSettings.json` profiles retargeted from the
+  retired LOTR module list (`Alliance.Wargs*LOTRLOME_Armory*DOTS_Map`) to the ADOD set —
+  `DOTS.Dependencies*Native*SandBoxCore*CustomBattle*Sandbox*StoryMode*ADODArmoryReleaseVersion*ADOD_Beasts*DOTS*ADODMap`
+  (note the armory's module Id is `ADODArmoryReleaseVersion`, not its folder name). Explicit
+  `_MODULES_` list also guarantees NavalDLC stays out of the load (see the distance-cache
+  constraint). Added `debugEngines: managed-framework,native` from TAOM's newer profile so
+  breakpoints bind on .NET Framework 4.7.2. `$(GameFolder)`/`$(GameBinariesFolder)`/`$(ModuleId)`
+  plumbing was already in place from the bootstrap.
+
+Not-tested: F5 launch end-to-end (user-side; this was the boot attempt that surfaced the
+missing-ButterLib error).
 
 ### fix: deep-review findings on the ADOD map adoption + cache transcoder (8-agent review)
 

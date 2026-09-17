@@ -1,101 +1,102 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
-Remap stale settlement scene_name references in DOTS_Map/settlements.xml to scenes that
-actually exist on disk (v1.4.5). Found via tools/audit_scene_names.py (2026-05-28):
+Remap stale settlement scene_name references in the map module's settlements.xml to scenes that
+actually exist on disk. Found via tools/audit_scene_names.py.
 
-  - 4 vanilla house-interior scenes were RENAMED in v1.4.5; the towns' house_1/2/3
-    locations still point at the old names -> crash on entering those houses.
-  - East Osgiliath referenced a misspelled custom scene (lotraom vs lotrtaom).
-  - 3 Isengard settlements reference custom scenes that don't exist on disk -> replaced
-    with a rugged vanilla scene of the matching type to stop crashes (aesthetic downgrade;
-    rebuild proper Isengard scenes later).
-
-Every replacement is verified to exist as a SceneObj folder (case-insensitive) before writing.
+History:
+  - 2026-05-28 (DOTS_Map, LOTR era): 4 vanilla house interiors renamed in v1.4.5 + 4 custom-scene
+    typos/absences. That module is retired; those entries are gone.
+  - 2026-09-15 (AWOIAF_Map, ADOD-derived): after tools/awoiaf_map/port_adod_scenes.py brought the 115
+    ADOD scenes into the module, two ADOD typos remained with no scene anywhere:
+      reach_westerlands_villagee -> reach_westerlands_village   (1 village, double 'e')
+      corspe_lake                -> adod_corpse_lake            (castle_NoxixIronIslands_nox3, 4 refs)
+Every replacement is verified to exist as a SceneObj folder (case-insensitive) in an enabled module
+before anything is written; scene_name and scene_name_1..3 are all remapped; I/O is byte-faithful
+(BOM + CRLF preserved).
 
 Usage:
-    python remap_stale_scene_names.py --dry-run
-    python remap_stale_scene_names.py --apply [--backup] [--shadow]
+    python tools/remap_stale_scene_names.py --dry-run
+    python tools/remap_stale_scene_names.py --apply [--backup] [--module "AWOIAF_Map"]
 """
 from __future__ import annotations
+
 import argparse
+import os
 import re
 from pathlib import Path
 
-GAME = Path(r"E:\Steam\steamapps\common\Mount & Blade II Bannerlord")
+GAME = Path(os.environ.get("BANNERLORD_GAME_DIR",
+                           r"E:\Steam\steamapps\common\Mount & Blade II Bannerlord"))
 MODULES = GAME / "Modules"
-LIVE = MODULES / "DOTS_Map" / "ModuleData" / "settlements.xml"
-SHADOW = Path(__file__).resolve().parent.parent / "Main" / "_Module" / "ModuleData" / "settlements.xml"
+DEFAULT_MODULE = "AWOIAF_Map"
+DEFAULT_ENABLED = ("Native", "SandBox", "SandBoxCore", "CustomBattle", "StoryMode")
 
 REMAP = {
-    # vanilla house-interior renames (v1.4.5)
-    "battania_house_a_interior_house": "battania_town_house_b_interior_b_house",
-    "khuzait_house_a_interior_house": "khuzait_house_c_interior_a_house",
-    "sturgia_house_a_interior_house": "sturgia_town_house_d1_interior_b_house",
-    "vlandia_house_d_interior_house": "vlandia_city_house_a_interior_house",
-    # custom Osgiliath scene typo (scene exists as lotrdots_*)
-    "lotraom_e_osgiliath_i_forceatmo": "lotrdots_e_osgiliath_i_forceatmo",
-    # Isengard custom scenes absent on disk -> rugged vanilla of matching type
-    "castle_orthanc_gate": "battania_castle_a",
-    "castle_village_isengard_a": "battania_village_c",
-    "village_isengard_a": "battania_village_e",
+    "reach_westerlands_villagee": "reach_westerlands_village",
+    "corspe_lake": "adod_corpse_lake",
 }
 
 
-def scene_folders_lower() -> set[str]:
-    out = set()
-    for so in MODULES.glob("*/SceneObj"):
-        for c in so.iterdir():
-            if c.is_dir():
-                out.add(c.name.lower())
+def scene_folders_lower(modules_dir: Path, enabled: list[str]) -> set[str]:
+    out: set[str] = set()
+    for mod in enabled:
+        so = modules_dir / mod / "SceneObj"
+        if so.is_dir():
+            out |= {c.name.lower() for c in so.iterdir() if c.is_dir()}
     return out
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
+def remap_text(text: str, remap: dict[str, str]) -> tuple[str, dict[str, int]]:
+    """Replace scene_name / scene_name_N attribute values per `remap`; returns (text, counts)."""
+    counts: dict[str, int] = {}
+    for old, new in remap.items():
+        pat = re.compile(r'(scene_name(?:_\d)?=")' + re.escape(old) + '"')
+        text, n = pat.subn(lambda m: m.group(1) + new + '"', text)
+        if n:
+            counts[old] = n
+    return text, counts
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--backup", action="store_true")
-    ap.add_argument("--shadow", action="store_true", help="also remap the repo shadow settlements.xml")
-    args = ap.parse_args()
+    ap.add_argument("--module", default=DEFAULT_MODULE)
+    ap.add_argument("--enabled", nargs="+", default=list(DEFAULT_ENABLED))
+    args = ap.parse_args(argv)
     if not (args.dry_run or args.apply):
         ap.error("pass --dry-run or --apply")
 
-    folders = scene_folders_lower()
+    folders = scene_folders_lower(MODULES, [*args.enabled, args.module])
     bad = [new for new in REMAP.values() if new.lower() not in folders]
     if bad:
-        print("ABORT — replacement scene(s) not found on disk:")
+        print("ABORT — replacement scene(s) not found in any enabled module's SceneObj:")
         for b in bad:
             print(f"  {b}")
         return 1
     print(f"All {len(set(REMAP.values()))} replacement scenes verified present on disk.\n")
 
-    targets = [LIVE]
-    if args.shadow:
-        targets.append(SHADOW)
-
-    for path in targets:
-        if not path.exists():
-            print(f"skip (missing): {path}")
-            continue
-        text = path.read_text(encoding="utf-8-sig", errors="replace")
-        had_bom = path.read_bytes().startswith(b"\xef\xbb\xbf")
-        total = 0
-        print(f"== {path} ==")
-        for old, new in REMAP.items():
-            pat = f'scene_name="{old}"'
-            n = text.count(pat)
-            if n:
-                text = text.replace(pat, f'scene_name="{new}"')
-                total += n
-                print(f"  {old} -> {new}  ({n})")
-        print(f"  total replacements: {total}")
-        if args.apply and total:
-            if args.backup:
-                path.with_suffix(".xml.bak_scenes").write_bytes(path.read_bytes())
-            path.write_bytes((b"\xef\xbb\xbf" if had_bom else b"") + text.encode("utf-8"))
-            print("  [APPLIED]")
-        elif args.dry_run:
-            print("  [DRY RUN]")
+    path = MODULES / args.module / "ModuleData" / "settlements.xml"
+    if not path.is_file():
+        raise SystemExit(f"missing: {path}")
+    raw = path.read_bytes()
+    had_bom = raw.startswith(b"\xef\xbb\xbf")
+    text, counts = remap_text(raw.decode("utf-8-sig"), REMAP)
+    print(f"== {path} ==")
+    for old, n in counts.items():
+        print(f"  {old} -> {REMAP[old]}  ({n})")
+    total = sum(counts.values())
+    print(f"  total replacements: {total}")
+    if args.apply and total:
+        if args.backup:
+            path.with_suffix(".xml.bak_scenes").write_bytes(raw)
+        tmp = path.with_suffix(".xml.tmp")
+        tmp.write_bytes((b"\xef\xbb\xbf" if had_bom else b"") + text.encode("utf-8"))
+        os.replace(tmp, path)
+        print("  [APPLIED]")
+    elif args.dry_run:
+        print("  [DRY RUN]")
     return 0
 
 

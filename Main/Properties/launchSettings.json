@@ -3,14 +3,15 @@
     "Bannerlord": {
       "commandName": "Executable",
       "executablePath": "$(GameFolder)\\bin\\$(GameBinariesFolder)\\Bannerlord.exe",
-      "commandLineArgs": "/singleplayer _MODULES_*DOTS.Dependencies*Native*SandBoxCore*CustomBattle*Sandbox*StoryMode*BirthAndDeath*FastMode*Alliance.Wargs*LOTRLOME_Armory*DOTS_Map*$(ModuleId)*_MODULES_",
+      "commandLineArgs": "/singleplayer _MODULES_*DOTS.Dependencies*Native*SandBoxCore*CustomBattle*Sandbox*StoryMode*ADODArmoryReleaseVersion*ADOD_Beasts*$(ModuleId)*AWOIAF_Map*_MODULES_",
       "workingDirectory": "$(GameFolder)\\bin\\$(GameBinariesFolder)",
+      "debugEngines": "managed-framework,native",
       "nativeDebugging": false
     },
     "BLSE Bannerlord": {
       "commandName": "Executable",
       "executablePath": "$(GameFolder)\\bin\\$(GameBinariesFolder)\\Bannerlord.BLSE.Standalone.exe",
-      "commandLineArgs": "/singleplayer _MODULES_*Bannerlord.Harmony*Native*SandBoxCore*CustomBattle*Sandbox*StoryMode*BirthAndDeath*$(ModuleId)*_MODULES_",
+      "commandLineArgs": "/singleplayer _MODULES_*Bannerlord.Harmony*Native*SandBoxCore*CustomBattle*Sandbox*StoryMode*ADODArmoryReleaseVersion*ADOD_Beasts*$(ModuleId)*AWOIAF_Map*_MODULES_",
       "workingDirectory": "$(GameFolder)\\bin\\$(GameBinariesFolder)"
     }
   }

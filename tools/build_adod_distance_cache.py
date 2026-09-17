@@ -68,7 +68,7 @@ from pathlib import Path
 
 GAME = Path(os.environ.get("BANNERLORD_GAME_DIR",
                            r"E:\Steam\steamapps\common\Mount & Blade II Bannerlord"))
-MAP_MODULE = GAME / "Modules" / "A Dance of Dragons - Map"
+MAP_MODULE = GAME / "Modules" / "AWOIAF_Map"  # DOTS map module (Id AWOIAF_Map), seeded from the ADOD map
 LEGACY_BIN = MAP_MODULE / "ModuleData" / "settlements_distance_cache.bin"
 SETTLEMENTS_XML = MAP_MODULE / "ModuleData" / "settlements.xml"
 OUT_DIR = MAP_MODULE / "ModuleData" / "DistanceCaches"

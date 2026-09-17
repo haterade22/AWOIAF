@@ -1,0 +1,26 @@
+<Module>
+	<Name value="A World of Ice and Fire - Map"/>
+	<Id value="AWOIAF_Map"/>
+	<Version value="v1.0.0"/>
+	<DefaultModule value="false"/>
+	<ModuleCategory value="Singleplayer"/>
+	<ModuleType value="Community"/>
+	<DependedModules>
+		<DependedModule Id="Native"/>
+		<DependedModule Id="SandBoxCore"/>
+		<DependedModule Id="Sandbox"/>
+		<DependedModule Id="CustomBattle"/>
+		<DependedModule Id="StoryMode"/>
+		<DependedModule Id="DOTS" Optional="true"/>
+	</DependedModules>
+	<SubModules/>
+	<Xmls>
+		<XmlNode>
+			<XmlName id="Settlements" path="settlements"/>
+			<IncludedGameTypes>
+				<GameType value="Campaign"/>
+				<GameType value="CampaignStoryMode"/>
+			</IncludedGameTypes>
+		</XmlNode>
+	</Xmls>
+</Module>

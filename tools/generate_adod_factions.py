@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the DOTS faction layer for the ADOD Westeros map (Robert's Rebellion, 283 AC).
 
-The external map module ("A Dance of Dragons - Map", Id=ADODMap) references 44 cultures and
+The external map module ("AWOIAF_Map", Id=AWOIAF_Map, seeded from ADOD's map) references 44 cultures and
 303 owner clans in its settlements.xml. Vanilla covers 11 cultures + 74 clans; DOTS hand-authors
 `Stormlander` in dots_spcultures.xml. This script generates everything else from three inputs:
 
@@ -47,7 +47,7 @@ SPEC_PATH = ROOT / "tools" / "data" / "westeros_factions_spec.json"
 
 GAME = Path(os.environ.get("BANNERLORD_GAME_DIR",
                            r"E:\Steam\steamapps\common\Mount & Blade II Bannerlord"))
-MAP_XML = GAME / "Modules" / "A Dance of Dragons - Map" / "ModuleData" / "settlements.xml"
+MAP_XML = GAME / "Modules" / "AWOIAF_Map" / "ModuleData" / "settlements.xml"  # Id AWOIAF_Map, seeded from ADOD
 SB = GAME / "Modules" / "SandBox" / "ModuleData"
 SBC = GAME / "Modules" / "SandBoxCore" / "ModuleData"
 
